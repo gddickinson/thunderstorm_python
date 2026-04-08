@@ -31,16 +31,18 @@ from . import fitting
 from . import postprocessing
 from . import visualization
 from . import simulation
+from . import evaluation
 from . import utils
 from .pipeline import ThunderSTORM
 
 __all__ = [
     'filters',
-    'detection', 
+    'detection',
     'fitting',
     'postprocessing',
     'visualization',
     'simulation',
+    'evaluation',
     'utils',
     'ThunderSTORM'
 ]

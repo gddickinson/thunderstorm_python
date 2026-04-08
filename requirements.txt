@@ -1,0 +1,11 @@
+# ThunderSTORM Python - Dependencies
+numpy>=1.21.0
+scipy>=1.7.0
+scikit-image>=0.19.0
+scikit-learn>=1.0.0
+matplotlib>=3.5.0
+pywt>=1.1.0
+
+# Optional dependencies
+# tifffile>=2021.0.0    # For TIFF stack loading
+# cupy>=11.0.0          # For GPU acceleration
