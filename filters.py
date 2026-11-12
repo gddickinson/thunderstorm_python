@@ -236,6 +236,20 @@ class NoFilter(BaseFilter):
         return image.astype(float)
 
 
+
+# Registry used by create_filter (and by the web interface to list the choices).
+FILTER_TYPES = {
+    'gaussian': GaussianFilter,
+    'wavelet': WaveletFilter,
+    'dog': DifferenceOfGaussians,
+    'lowered_gaussian': LoweredGaussian,
+    'diff_avg': DifferenceOfAveraging,
+    'median': MedianFilter,
+    'box': BoxFilter,
+    'none': NoFilter
+}
+
+
 def create_filter(filter_type, **kwargs):
     """Factory function to create filters.
     
@@ -252,16 +266,7 @@ def create_filter(filter_type, **kwargs):
     filter : BaseFilter
         Configured filter object
     """
-    filter_map = {
-        'gaussian': GaussianFilter,
-        'wavelet': WaveletFilter,
-        'dog': DifferenceOfGaussians,
-        'lowered_gaussian': LoweredGaussian,
-        'diff_avg': DifferenceOfAveraging,
-        'median': MedianFilter,
-        'box': BoxFilter,
-        'none': NoFilter
-    }
+    filter_map = FILTER_TYPES
     
     filter_type = filter_type.lower()
     if filter_type not in filter_map:

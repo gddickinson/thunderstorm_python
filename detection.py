@@ -176,6 +176,16 @@ class GridDetector(BaseDetector):
         return coordinates[mask]
 
 
+
+# Registry used by create_detector (and by the web interface to list the choices).
+DETECTOR_TYPES = {
+    'local_maximum': LocalMaximumDetector,
+    'non_maximum_suppression': NonMaximumSuppression,
+    'centroid': CentroidDetector,
+    'grid': GridDetector
+}
+
+
 def create_detector(detector_type, **kwargs):
     """Factory function to create detectors.
     
@@ -192,12 +202,7 @@ def create_detector(detector_type, **kwargs):
     detector : BaseDetector
         Configured detector object
     """
-    detector_map = {
-        'local_maximum': LocalMaximumDetector,
-        'non_maximum_suppression': NonMaximumSuppression,
-        'centroid': CentroidDetector,
-        'grid': GridDetector
-    }
+    detector_map = DETECTOR_TYPES
     
     detector_type = detector_type.lower()
     if detector_type not in detector_map:

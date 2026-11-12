@@ -15,6 +15,7 @@ This package provides:
 - Post-processing and filtering
 - Visualization methods
 - Simulation tools
+- thunderSTORM-format CSV export (thunderstorm_format)
 
 Author: George (based on thunderSTORM by Ovesný et al., 2014)
 Reference: Ovesný, M., Křížek, P., Borkovec, J., Švindrych, Z., & Hagen, G. M. (2014). 
@@ -33,6 +34,7 @@ from . import visualization
 from . import simulation
 from . import evaluation
 from . import utils
+from . import thunderstorm_format
 from .pipeline import ThunderSTORM
 
 __all__ = [
@@ -44,5 +46,6 @@ __all__ = [
     'simulation',
     'evaluation',
     'utils',
+    'thunderstorm_format',
     'ThunderSTORM'
 ]
