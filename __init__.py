@@ -37,6 +37,7 @@ from . import utils
 from . import drift
 from . import thunderstorm_format
 from .pipeline import ThunderSTORM
+from .quick import create_default_pipeline, quick_analysis
 
 __all__ = [
     'filters',
@@ -49,5 +50,7 @@ __all__ = [
     'evaluation',
     'utils',
     'thunderstorm_format',
-    'ThunderSTORM'
+    'ThunderSTORM',
+    'create_default_pipeline',
+    'quick_analysis',
 ]

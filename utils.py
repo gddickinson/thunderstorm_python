@@ -56,6 +56,11 @@ def load_localizations_csv(filepath):
 def save_localizations_csv(localizations, filepath, include_metadata=True):
     """Save localizations to CSV file.
     
+    Columns keep the pipeline's conventions: 'x [nm]', 'y [nm]' with a
+    pixel-centre origin (centre of pixel (0, 0) at 0 nm), 0-based frames,
+    sigma in pixels. For thunderSTORM's corner-origin format use
+    thunderstorm_format.save_thunderstorm_csv.
+    
     Parameters
     ----------
     localizations : dict

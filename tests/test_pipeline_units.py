@@ -41,3 +41,20 @@ def test_pixel_size_scales_positions():
     a = ThunderSTORM(pixel_size=100.0).analyze_frame(frame)
     b = ThunderSTORM(pixel_size=160.0).analyze_frame(frame)
     np.testing.assert_allclose(b['x'] / 160.0, a['x'] / 100.0, rtol=1e-9)
+
+
+def test_readme_quick_start_imports():
+    """README: `from thunderstorm_python import quick_analysis` used to raise ImportError."""
+    from thunderstorm_python import create_default_pipeline, quick_analysis
+    from thunderstorm_python.pipeline import quick_analysis as q2
+    assert quick_analysis is q2 and create_default_pipeline().pixel_size == 100.0
+
+
+def test_pixel_centre_origin_documented_and_exact():
+    """A spot centred on pixel (row 5, col 7) is reported at (700, 500) nm: pixel-centre origin."""
+    import thunderstorm_python.pipeline as pl
+    assert 'pixel-centre origin' in pl.__doc__
+    yy, xx = np.mgrid[0:15, 0:15]
+    img = 10 + 2000 * np.exp(-((xx - 7) ** 2 + (yy - 5) ** 2) / (2 * 1.3 ** 2))
+    locs = ThunderSTORM(pixel_size=100.0, threshold_expression=50.0).analyze_frame(img)
+    np.testing.assert_allclose([locs['x'][0], locs['y'][0]], [700.0, 500.0], atol=1e-3)

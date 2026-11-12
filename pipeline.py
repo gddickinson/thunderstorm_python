@@ -4,6 +4,20 @@ ThunderSTORM Pipeline
 
 Main analysis pipeline integrating all components.
 Provides high-level interface similar to thunderSTORM's "Run Analysis".
+
+Coordinates and units of the results
+------------------------------------
+- x, y: nm, **pixel-centre origin**: the centre of camera pixel (row 0,
+  column 0) is (x, y) = (0, 0) nm, so pixel (row r, column c) is centred at
+  (c * pixel_size, r * pixel_size) and the image spans -pixel_size/2 to
+  (width - 1/2) * pixel_size. x runs along columns, y along rows (down).
+  This is the convention of simulation.SMLMSimulator's ground truth.
+  ImageJ / thunderSTORM use a corner origin instead (add pixel_size / 2);
+  thunderstorm_format.save_thunderstorm_csv converts when exporting.
+- uncertainty: nm; sigma_x / sigma_y: camera pixels; frame: 0-based.
+- intensity / background: in the fitter's units (camera counts for
+  gaussian_lsq, photons for gaussian_mle).
+- pixel_size (nm per camera pixel) is a required, explicit setting.
 """
 
 import numpy as np
@@ -30,7 +44,8 @@ class ThunderSTORM:
     threshold_expression : str or float
         Detection threshold expression
     pixel_size : float
-        Camera pixel size in nm
+        Camera pixel size in nm (positions are reported in nm with a
+        pixel-centre origin; see the module docstring)
     photons_per_adu : float
         Photoelectrons per A/D count
     baseline : float
@@ -174,7 +189,9 @@ class ThunderSTORM:
         Returns
         -------
         localizations : dict
-            All localizations from all frames
+            All localizations from all frames (x, y in nm with a
+            pixel-centre origin; see the module docstring). Candidates
+            whose fit failed are not included: see get_rejected().
         """
         # Ensure 3D
         if images.ndim == 2:
@@ -430,60 +447,5 @@ class ThunderSTORM:
         return self.localizations
 
 
-def create_default_pipeline():
-    """Create ThunderSTORM pipeline with default settings.
-    
-    These are the default settings that work well on many datasets.
-    
-    Returns
-    -------
-    pipeline : ThunderSTORM
-        Configured pipeline
-    """
-    return ThunderSTORM(
-        filter_type='wavelet',
-        filter_params={'scale': 2, 'order': 3},
-        detector_type='local_maximum',
-        detector_params={'connectivity': '8-neighbourhood', 'min_distance': 1},
-        fitter_type='gaussian_lsq',
-        fitter_params={'integrated': True, 'elliptical': False, 'initial_sigma': 1.3},
-        threshold_expression='std(Wave.F1)',
-        pixel_size=100.0,  # nm
-        photons_per_adu=1.0,
-        baseline=100.0,
-        em_gain=1.0
-    )
-
-
-def quick_analysis(images, **kwargs):
-    """Quick analysis with default parameters.
-    
-    Parameters
-    ----------
-    images : ndarray
-        Image stack to analyze
-    **kwargs : dict
-        Additional parameters for pipeline
-        
-    Returns
-    -------
-    localizations : dict
-        Detected localizations
-    rendered : ndarray
-        Rendered super-resolution image
-    """
-    # Create pipeline
-    pipeline = create_default_pipeline()
-    
-    # Update any custom parameters
-    for key, value in kwargs.items():
-        if hasattr(pipeline, key):
-            setattr(pipeline, key, value)
-    
-    # Analyze
-    localizations = pipeline.analyze_stack(images)
-    
-    # Render
-    rendered = pipeline.render(renderer_type='gaussian', pixel_size=10)
-    
-    return localizations, rendered, pipeline
+# Convenience helpers live in quick.py; re-exported here for backward compatibility.
+from .quick import create_default_pipeline, quick_analysis  # noqa: E402,F401
