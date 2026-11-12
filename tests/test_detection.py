@@ -86,3 +86,33 @@ class TestRemoveBorderDetections:
         detections = np.array([]).reshape(0, 2)
         filtered = remove_border_detections(detections, (64, 64), border=5)
         assert len(filtered) == 0
+
+
+class TestLocalMaximumConnectivity:
+    """Regression: `connectivity` was accepted but ignored (always 8-neighbourhood)."""
+
+    def _diagonal_pair(self):
+        img = np.zeros((9, 9))
+        img[4, 4] = 10.0
+        img[5, 5] = 9.0   # diagonal neighbour of the brighter pixel
+        return img
+
+    def test_8_neighbourhood_suppresses_diagonal(self):
+        det = LocalMaximumDetector(connectivity='8-neighbourhood')
+        assert det.detect(self._diagonal_pair(), 1.0).tolist() == [[4, 4]]
+
+    def test_4_neighbourhood_keeps_diagonal(self):
+        det = LocalMaximumDetector(connectivity='4-neighbourhood')
+        assert det.detect(self._diagonal_pair(), 1.0).tolist() == [[4, 4], [5, 5]]
+
+    def test_4_neighbourhood_diamond_for_larger_distance(self):
+        img = np.zeros((15, 15))
+        img[7, 7] = 10.0
+        img[8, 9] = 9.0   # |dy| + |dx| = 3 > 2, Chebyshev 2: outside the diamond, inside the square
+        four = LocalMaximumDetector(connectivity='4-neighbourhood', min_distance=2).detect(img, 1.0).tolist()
+        eight = LocalMaximumDetector(connectivity='8-neighbourhood', min_distance=2).detect(img, 1.0).tolist()
+        assert [8, 9] in four and eight == [[7, 7]]
+
+    def test_invalid_connectivity(self):
+        with pytest.raises(ValueError):
+            LocalMaximumDetector(connectivity='6-neighbourhood')

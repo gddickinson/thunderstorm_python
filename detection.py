@@ -41,6 +41,13 @@ class BaseDetector:
 class LocalMaximumDetector(BaseDetector):
     """Detect molecules as local maxima.
     
+    A pixel is a candidate when it is above the threshold and equals the
+    maximum of its neighbourhood: the (2d+1) x (2d+1) square for
+    '8-neighbourhood', or the diamond |dy| + |dx| <= d for '4-neighbourhood'
+    (d = min_distance; d = 1 gives the 8 or 4 nearest neighbours). Pixels
+    within d of the border are excluded, and candidates closer than d
+    (Chebyshev distance) to a brighter one are dropped.
+    
     Parameters
     ----------
     connectivity : str
@@ -49,21 +56,31 @@ class LocalMaximumDetector(BaseDetector):
         Minimum distance between peaks
     """
     
+    CONNECTIVITIES = ('4-neighbourhood', '8-neighbourhood')
+
     def __init__(self, connectivity='8-neighbourhood', min_distance=1):
         super().__init__("LocalMaximum")
+        if connectivity not in self.CONNECTIVITIES:
+            raise ValueError(f"connectivity must be one of {self.CONNECTIVITIES}, got {connectivity!r}")
         self.connectivity = connectivity
         self.min_distance = min_distance
+
+    def footprint(self):
+        """Neighbourhood used for the maximum filter (None = skimage's square)."""
+        if self.connectivity == '8-neighbourhood' or self.min_distance < 1:
+            return None
+        d = self.min_distance
+        yy, xx = np.mgrid[-d:d + 1, -d:d + 1]
+        return (np.abs(yy) + np.abs(xx)) <= d
         
     def detect(self, image, threshold):
         """Detect local maxima above threshold."""
-        # Use peak_local_max for robust detection
-        footprint_size = 3 if self.connectivity == '8-neighbourhood' else None
-        
         coordinates = peak_local_max(
             image,
             min_distance=self.min_distance,
             threshold_abs=threshold,
-            exclude_border=True
+            exclude_border=True,
+            footprint=self.footprint()
         )
         
         return coordinates

@@ -10,6 +10,8 @@ function paramInputs(kind, opt, values) {
   return list(opt.params, p => {
     const id = `${kind}-${p.name}`, v = values?.[p.name] ?? p.default;
     if (p.type === 'bool') return `<label class="chk" for="${id}"><input type="checkbox" id="${id}" data-kind="${kind}" data-p="${p.name}" data-t="bool" ${v ? 'checked' : ''}> ${esc(p.name)}</label>`;
+    if (p.choices) return `<label for="${id}">${esc(p.name)}</label><select id="${id}" data-kind="${kind}" data-p="${p.name}" data-t="str">
+      ${p.choices.map(c => `<option ${c === v ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>`;
     const step = p.type === 'int' ? '1' : 'any';
     return `<label for="${id}">${esc(p.name)} <span class="unit">${p.name.includes('sigma') ? 'px' : p.name.includes('size') || p.name.includes('distance') || p.name === 'spacing' ? 'px' : ''}</span></label>
       <input id="${id}" type="${p.type === 'str' ? 'text' : 'number'}" step="${step}" data-kind="${kind}" data-p="${p.name}" data-t="${p.type}" value="${esc(v)}">`;

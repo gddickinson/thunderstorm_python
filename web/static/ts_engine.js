@@ -155,11 +155,23 @@ export function threshold(raw, filtered, expr) {
 }
 
 // ---- detection.py ---------------------------------------------------------------------------------------------------
-// LocalMaximumDetector: skimage peak_local_max(min_distance, threshold_abs, exclude_border=True). Returns [[row, col]].
-export function localMaximum(im, thr, minDistance = 1) {
+// LocalMaximumDetector: skimage peak_local_max(min_distance, threshold_abs, exclude_border=True), with the square
+// footprint ('8-neighbourhood') or the diamond |dy| + |dx| <= min_distance ('4-neighbourhood'). Returns [[row, col]].
+export function localMaximum(im, thr, minDistance = 1, connectivity = '8-neighbourhood') {
   const { w, h, d } = im, r = minDistance;
+  if (connectivity !== '8-neighbourhood' && connectivity !== '4-neighbourhood') throw new Error(`unknown connectivity '${connectivity}'`);
   let mx = d;
-  if (r >= 1) { // maximum_filter, square footprint 2r+1, mode 'nearest' (separable)
+  if (r >= 1 && connectivity === '4-neighbourhood') { // maximum_filter with a diamond footprint, mode 'nearest'
+    mx = new Float64Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let m = -Infinity;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r + Math.abs(dy); dx <= r - Math.abs(dy); dx++) {
+        const v = d[nearest(y + dy, h) * w + nearest(x + dx, w)];
+        if (v > m) m = v;
+      }
+      mx[y * w + x] = m;
+    }
+  } else if (r >= 1) { // maximum_filter, square footprint 2r+1, mode 'nearest' (separable)
     const maxAlong = (src, axis) => {
       const o = new Float64Array(w * h);
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -212,7 +224,7 @@ export function nonMaxSuppression(im, thr, connectivity = 2) {
 }
 
 export const DETECTORS = {
-  local_maximum: (im, thr, p) => localMaximum(im, thr, p.min_distance ?? 1),
+  local_maximum: (im, thr, p) => localMaximum(im, thr, p.min_distance ?? 1, p.connectivity ?? '8-neighbourhood'),
   non_maximum_suppression: (im, thr, p) => nonMaxSuppression(im, thr, p.connectivity ?? 2),
 };
 

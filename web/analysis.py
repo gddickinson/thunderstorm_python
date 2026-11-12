@@ -19,8 +19,9 @@ JS_SUPPORTED = {"filter": ["wavelet", "gaussian", "dog", "none"],
                 "detector": ["local_maximum", "non_maximum_suppression"],
                 "fitter": ["gaussian_lsq"]}
 # Constructor arguments that have no effect in the current code, so the UI does not offer them (see the report).
-INERT = {("detector", "local_maximum", "connectivity"), ("fitter", "gaussian_lsq", "elliptical"),
-         ("fitter", "gaussian_mle", "elliptical")}
+INERT = {("fitter", "gaussian_lsq", "elliptical"), ("fitter", "gaussian_mle", "elliptical")}
+# Text parameters with a fixed set of values (shown as a select).
+CHOICES = {("detector", "local_maximum", "connectivity"): list(detection.LocalMaximumDetector.CONNECTIVITIES)}
 REGISTRIES = {"filter": filters.FILTER_TYPES, "detector": detection.DETECTOR_TYPES, "fitter": fitting.FITTER_TYPES}
 MAX_FRAMES = 5000
 
@@ -40,7 +41,7 @@ def options():
     for kind, reg in REGISTRIES.items():
         out[kind] = []
         for name, cls in reg.items():
-            params = [{"name": k, "default": v, "type": type(v).__name__}
+            params = [{"name": k, "default": v, "type": type(v).__name__, "choices": CHOICES.get((kind, name, k))}
                       for k, v in _defaults(cls.__init__).items() if (kind, name, k) not in INERT]
             doc = (inspect.getdoc(cls) or "").split("\n")[0]
             out[kind].append({"id": name, "label": doc or name, "params": params, "js": name in JS_SUPPORTED[kind]})
@@ -93,6 +94,8 @@ def parse_params(p):
                 params[k] = _num(v, k, 0, 1e6)
             else:
                 params[k] = str(v)
+                if (kind, t, k) in CHOICES and params[k] not in CHOICES[(kind, t, k)]:
+                    raise AnalysisError(f"{k} must be one of {CHOICES[(kind, t, k)]}")
         kw[f"{kind}_type"], kw[f"{kind}_params"] = t, params
     thr = p.get("threshold_expression", d["threshold_expression"])
     if isinstance(thr, str) and len(thr) > 120:
