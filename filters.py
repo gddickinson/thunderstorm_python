@@ -14,7 +14,6 @@ Implements all filtering methods from thunderSTORM for feature enhancement:
 import numpy as np
 from scipy import ndimage
 from scipy.signal import convolve2d
-import pywt
 
 
 class BaseFilter:
