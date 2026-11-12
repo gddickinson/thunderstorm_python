@@ -63,7 +63,7 @@ class GaussianRenderer(BaseRenderer):
             y_max = int(np.max(localizations['y']) / pixel_size) + 10
             image_size = (x_max, y_max)
         
-        image = np.zeros(image_size)
+        image = np.zeros((image_size[1], image_size[0]))  # (rows, cols) = (height, width)
         
         # Determine sigma for each localization
         if isinstance(self.sigma, str):
@@ -142,7 +142,7 @@ class HistogramRenderer(BaseRenderer):
         
         if not self.jittering:
             # Simple histogram
-            image = np.zeros(image_size)
+            image = np.zeros((image_size[1], image_size[0]))  # (rows, cols) = (height, width)
             
             x_coords = (localizations['x'] / pixel_size).astype(int)
             y_coords = (localizations['y'] / pixel_size).astype(int)
@@ -160,7 +160,7 @@ class HistogramRenderer(BaseRenderer):
                 
         else:
             # Jittered histogram - average multiple random shifts
-            image = np.zeros(image_size)
+            image = np.zeros((image_size[1], image_size[0]))  # (rows, cols) = (height, width)
             
             for _ in range(self.n_averages):
                 # Add random jitter
@@ -178,7 +178,7 @@ class HistogramRenderer(BaseRenderer):
                 y_coords = y_coords[valid]
                 
                 # Accumulate
-                temp = np.zeros(image_size)
+                temp = np.zeros((image_size[1], image_size[0]))  # (rows, cols) = (height, width)
                 for x, y in zip(x_coords, y_coords):
                     temp[y, x] += 1
                     
@@ -225,7 +225,7 @@ class AverageShiftedHistogram(BaseRenderer):
             shifts = [(0, 0), (0.5, 0), (0, 0.5), (0.5, 0.5)]
         
         # Accumulate shifted histograms
-        image = np.zeros(image_size)
+        image = np.zeros((image_size[1], image_size[0]))  # (rows, cols) = (height, width)
         
         for shift_x, shift_y in shifts:
             x_coords = ((localizations['x'] / pixel_size) + shift_x).astype(int)
@@ -239,7 +239,7 @@ class AverageShiftedHistogram(BaseRenderer):
             y_coords = y_coords[valid]
             
             # Accumulate
-            temp = np.zeros(image_size)
+            temp = np.zeros((image_size[1], image_size[0]))  # (rows, cols) = (height, width)
             for x, y in zip(x_coords, y_coords):
                 temp[y, x] += 1
             
@@ -268,7 +268,7 @@ class ScatterRenderer(BaseRenderer):
             y_max = int(np.max(localizations['y']) / pixel_size) + 10
             image_size = (x_max, y_max)
         
-        image = np.zeros(image_size)
+        image = np.zeros((image_size[1], image_size[0]))  # (rows, cols) = (height, width)
         
         x_coords = (localizations['x'] / pixel_size).astype(int)
         y_coords = (localizations['y'] / pixel_size).astype(int)
