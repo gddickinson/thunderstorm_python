@@ -98,3 +98,14 @@ class TestCreateTestPattern:
         mask = create_test_pattern('random', size=64)
         assert mask.shape == (64, 64)
         assert np.all(mask == 1.0)
+
+
+def test_background_is_poisson_once():
+    """Regression: the background was Poisson-sampled, then the whole image was
+    Poisson-sampled again, doubling the background variance (var = 2 * mean)."""
+    np.random.seed(11)
+    sim = SMLMSimulator(image_size=(200, 200), background_photons=10.0)
+    frame, gt = sim.render_frame(np.zeros((0, 2)))
+    assert len(gt['x']) == 0
+    assert frame.mean() == pytest.approx(10.0, rel=0.02)
+    assert frame.var() / frame.mean() == pytest.approx(1.0, abs=0.06)

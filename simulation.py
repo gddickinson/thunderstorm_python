@@ -110,12 +110,9 @@ class SMLMSimulator:
         if active_molecules is None:
             active_molecules = np.ones(len(molecule_positions), dtype=bool)
         
-        # Initialize image
-        image = np.zeros(self.image_size)
-        
-        # Add background
-        background = np.random.poisson(self.background_photons, self.image_size)
-        image += background
+        # Expected photons per pixel: uniform background plus the PSFs below;
+        # shot noise is applied once, to the whole image, at the end.
+        image = np.full(self.image_size, float(self.background_photons))
         
         # Render each active molecule
         sigma_pixels = self.psf_sigma / self.pixel_size
