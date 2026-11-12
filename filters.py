@@ -276,9 +276,10 @@ def compute_threshold_expression(image, filtered_image, expression):
     """Evaluate threshold expression.
     
     ThunderSTORM allows threshold specification using expressions like:
-    - 'std(Wave.F1)' - standard deviation of wavelet level 1
+    - 'std(Wave.F1)' - standard deviation of wavelet level 1 of the raw image
     - '2*std(Wave.F1)' - 2x standard deviation
     - 'mean(I1) + 3*std(I1)' - mean + 3*std of raw image
+    - 'std(F1)' - standard deviation of the filtered image (selected filter)
     
     Parameters
     ----------
@@ -296,8 +297,11 @@ def compute_threshold_expression(image, filtered_image, expression):
     """
     if isinstance(expression, (int, float)):
         return float(expression)
-        
-    # Create namespace for expression evaluation
+
+    # 'Wave.F1' / 'Wave.F2' are thunderSTORM variable names (first / second
+    # wavelet level of the raw image); a dotted name is not a valid Python
+    # identifier, so rewrite it before evaluation and compute it on demand.
+    expr = str(expression)
     namespace = {
         'std': np.std,
         'mean': np.mean,
@@ -305,12 +309,16 @@ def compute_threshold_expression(image, filtered_image, expression):
         'max': np.max,
         'min': np.min,
         'I1': image,  # Raw image
-        'Wave.F1': filtered_image,  # Filtered image
-        'F1': filtered_image
+        'F1': filtered_image  # Filtered image (output of the selected filter)
     }
-    
+    for level in (1, 2):
+        token = f'Wave.F{level}'
+        if token in expr:
+            expr = expr.replace(token, f'Wave_F{level}')
+            namespace[f'Wave_F{level}'] = WaveletFilter(scale=level, order=3).apply(image)
+
     try:
-        threshold = eval(expression, {"__builtins__": {}}, namespace)
+        threshold = eval(expr, {"__builtins__": {}}, namespace)
         return float(threshold)
     except Exception as e:
         raise ValueError(f"Invalid threshold expression '{expression}': {e}")
