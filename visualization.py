@@ -86,6 +86,8 @@ class GaussianRenderer(BaseRenderer):
             x = localizations['x'][i] / pixel_size
             y = localizations['y'][i] / pixel_size
             sigma = sigmas[i]
+            if not np.isfinite(sigma) or sigma <= 0:
+                continue  # e.g. a failed fit (uncertainty inf) in 'computed' mode
             
             # Determine region to render
             radius = int(3 * sigma)

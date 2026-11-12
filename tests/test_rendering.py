@@ -30,3 +30,11 @@ def test_non_square_shape_and_peak(kind):
 def test_auto_size_wide_field(kind):
     img = create_renderer(kind).render(LOCS, pixel_size=10)
     assert img.shape == (int(100 / 10) + 10, int(400 / 10) + 10)
+
+
+def test_computed_sigma_skips_failed_fits():
+    """Regression: a failed fit has uncertainty inf, and int(3 * inf) raised OverflowError."""
+    locs = {'x': np.array([400.0, 200.0]), 'y': np.array([100.0, 100.0]),
+            'uncertainty': np.array([10.0, np.inf])}
+    img = create_renderer('gaussian', sigma='computed').render(locs, pixel_size=10, image_size=(60, 20))
+    assert np.isfinite(img).all() and img[10, 40] == pytest.approx(1.0) and img[10, 20] == 0
