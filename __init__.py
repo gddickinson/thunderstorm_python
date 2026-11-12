@@ -34,6 +34,7 @@ from . import visualization
 from . import simulation
 from . import evaluation
 from . import utils
+from . import drift
 from . import thunderstorm_format
 from .pipeline import ThunderSTORM
 
@@ -42,6 +43,7 @@ __all__ = [
     'detection',
     'fitting',
     'postprocessing',
+    'drift',
     'visualization',
     'simulation',
     'evaluation',
