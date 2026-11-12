@@ -35,6 +35,8 @@ no CLI entry point -- library-only usage.
 - [ ] Support TIFF stack lazy loading for memory-efficient processing of
       large datasets (10k+ frames)
 - [ ] Add a minimal GUI (Qt or napari plugin) for interactive parameter tuning
+- [x] Web interface (`web/`, `run_web.py`) and static GitHub Pages site with an in-browser port of the
+      pipeline (2026-11-12)
 - [ ] Implement the remaining thunderSTORM filters not yet ported (if any):
       verify parity with the original plugin
 
@@ -55,6 +57,7 @@ no CLI entry point -- library-only usage.
 ## Technical Debt
 - [ ] Individual module files may be large -- audit `fitting.py` and
       `postprocessing.py` for size and split if over 500 lines
+      (fitting.py split into fitting.py + fitting_base.py, 2026-11-12; postprocessing.py, 573 lines, still to do)
 - [x] `examples.py` is a module inside the package but contains usage demos --
       it should not be importable as part of the library
 - [x] No `requirements.txt` or dependency specification file

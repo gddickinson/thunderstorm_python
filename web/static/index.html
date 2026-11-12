@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ThunderSTORM Python</title>
+<meta name="description" content="A Python implementation of thunderSTORM for Single Molecule Localization Microscopy: filtering, peak detection, Gaussian PSF fitting and super-resolution rendering, here running on a simulated SMLM movie or your own TIFF.">
+<link rel="icon" href="static/icon.svg">
+<link rel="stylesheet" href="static/style.css">
+<link rel="stylesheet" href="static/style_app.css">
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<header class="top">
+  <a class="brand" href="#/"><span class="mark"></span>ThunderSTORM Py</a>
+  <nav class="groups" aria-label="Pages">
+    <a href="#/analyze" data-nav="analyze">Analyse</a>
+    <a href="#/image" data-nav="image">Image</a>
+    <a href="#/table" data-nav="table">Localisations</a>
+    <a href="#/validate" data-nav="validate">Validation</a>
+    <a href="#/method" data-nav="method">Method</a>
+    <a href="#/about" data-nav="about">About</a>
+  </nav>
+  <div class="right"><a class="small mute" href="https://github.com/gddickinson/thunderstorm_python" target="_blank" rel="noopener">GitHub</a></div>
+</header>
+<main id="app" tabindex="-1"></main>
+<footer class="foot">ThunderSTORM Python · <a href="https://github.com/gddickinson/thunderstorm_python">source on GitHub</a> · <span id="mode"></span></footer>
+<script type="module" src="static/main.js"></script>
+</body>
+</html>
