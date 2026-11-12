@@ -44,11 +44,11 @@ This package provides a complete Python clone of the popular [thunderSTORM](http
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/thunderstorm_python.git
+git clone https://github.com/gddickinson/thunderstorm_python.git
 cd thunderstorm_python
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (tifffile is needed to load .tif stacks)
+pip install -r requirements.txt tifffile
 
 # Install package
 pip install -e .
@@ -376,7 +376,8 @@ Contributions welcome! Please submit issues and pull requests on GitHub.
 
 ## License
 
-GPL-3.0 License - same as original thunderSTORM
+MIT License (see `LICENSE`). This is an independent Python reimplementation; the original
+thunderSTORM ImageJ plugin is distributed under its own (GPL-3.0) licence.
 
 ## Citation
 
