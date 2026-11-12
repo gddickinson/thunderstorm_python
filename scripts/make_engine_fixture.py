@@ -45,7 +45,7 @@ def small_movie():
 def run_case(name, movie, params):
     p = dict(params)
     fit_radius = p.pop("fit_radius")
-    kw = {k: v for k, v in p.items() if k != "em_gain"}
+    kw = dict(p)
     pipe = ThunderSTORM(**kw)
     trace = []
     for i, frame in enumerate(movie):
@@ -76,7 +76,8 @@ def build():
                  "filter_params": {"sigma1": 1.0, "sigma2": 1.6},
                  "detector_params": {"min_distance": 2, "connectivity": "4-neighbourhood"},
                  "fitter_params": {"integrated": False, "initial_sigma": 1.5}, "fit_radius": 4,
-                 "threshold_expression": "1.5*std(F1)", "pixel_size": 160.0, "photons_per_adu": 0.5}),
+                 "threshold_expression": "1.5*std(F1)", "pixel_size": 160.0, "photons_per_adu": 0.5,
+                 "baseline": 5.0, "em_gain": 30.0}),
         run_case("wavelet, 4-neighbourhood", small, {**base, "detector_params": {"min_distance": 1, "connectivity": "4-neighbourhood"},
                  "threshold_expression": "0.8*std(Wave.F1)", "pixel_size": 100.0, "baseline": 0.0}),
         run_case("wavelet order 1 scale 3, Wave.F2, NMS cross", small, {**base, "filter_params": {"scale": 3, "order": 1},
@@ -91,14 +92,14 @@ def build():
            PerformanceEvaluator().evaluate({"x": locs["x"][locs["frame"] == f], "y": locs["y"][locs["frame"] == f]}, truth[f]).items()}
           for f in range(12) if len(truth[f]["x"])]
     gt12 = [{"frame": f, "x": truth[f]["x"].tolist(), "y": truth[f]["y"].tolist()} for f in range(12) if len(truth[f]["x"])]
-    ts = to_thunderstorm_columns(locs, pixel_size=100.0, photons_per_adu=0.5, baseline=3.0)
+    ts = to_thunderstorm_columns(locs, pixel_size=100.0, photons_per_adu=0.5, baseline=3.0, em_gain=2.0)
     return {
         "cases": cases,
         "render": {"sigma_nm": 20.0, "pixel_size": 25, "image_size": [256, 256], "sum": float(render.sum()),
                    "max": float(render.max()), "argmax": int(np.argmax(render)),
                    "rows": {str(r): render[r].tolist() for r in (40, 128, 200)}},
         "evaluate": {"truth": gt12, "metrics": ev},
-        "export": {"pixel_size": 100.0, "photons_per_adu": 0.5, "baseline": 3.0,
+        "export": {"pixel_size": 100.0, "photons_per_adu": 0.5, "baseline": 3.0, "em_gain": 2.0,
                    "columns": {k: [None if not np.isfinite(float(v)) else float(v) for v in vals] for k, vals in ts.items()}},
     }
 

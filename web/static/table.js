@@ -22,7 +22,7 @@ route('table', async () => {
     <p class="small">thunderSTORM column format: <code>id, frame, x [nm], y [nm], sigma [nm]</code> (or <code>sigma1/sigma2 [nm]</code> when the
       fit gave different x / y widths), <code>intensity [photon], offset [photon], uncertainty [nm]</code>. Frames are 1-based and x / y use
       thunderSTORM's corner origin (x + pixel/2), so the file opens in thunderSTORM's results table. Counts are converted with
-      ${p.photons_per_adu} photons/ADU and a ${p.baseline} ADU baseline${photonFitter ? ' (the MLE fitter already works in photons)' : ''};
+      ${p.photons_per_adu} photons/ADU, a ${p.baseline} ADU baseline and EM gain ${p.em_gain ?? 1}${photonFitter ? ' (the MLE fitter already works in photons)' : ''};
       thunderSTORM's bkgstd column is not written because this package does not estimate it.</p>
     <button type="button" id="csv">Download thunderSTORM CSV</button></div>
   <div class="row"><div><label for="f0">From frame</label><input id="f0" type="number" min="1" value="1"></div>
@@ -51,7 +51,7 @@ route('table', async () => {
   $('#pp').addEventListener('click', () => { page = Math.max(0, page - 1); draw(); });
   $('#pn').addEventListener('click', () => { page++; draw(); });
   $('#csv').addEventListener('click', () => {
-    const cols = toThunderstormColumns(L, { pixelSize: r.pixel_size_nm, photonsPerAdu: p.photons_per_adu, baseline: p.baseline, fitterType: p.fitter_type });
+    const cols = toThunderstormColumns(L, { pixelSize: r.pixel_size_nm, photonsPerAdu: p.photons_per_adu, baseline: p.baseline, fitterType: p.fitter_type, emGain: p.em_gain ?? 1 });
     const stem = r.source === 'demo' ? 'demo_simulated' : String(r.source).replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '_');
     download(`${stem}_${r.pixel_size_nm}nm_thunderstorm.csv`, toCsv(cols), 'text/csv');
   });

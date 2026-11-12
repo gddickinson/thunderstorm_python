@@ -18,6 +18,7 @@ from scipy import optimize, ndimage
 from .fitting_base import (  # noqa: F401  (re-exported for backward compatibility)
     LocalizationResult, BaseFitter, gaussian_2d, integrated_gaussian_2d,
 )
+from .uncertainty import localization_uncertainty
 
 
 class GaussianLSQFitter(BaseFitter):
@@ -90,7 +91,7 @@ class GaussianLSQFitter(BaseFitter):
                 sigma_y = abs(popt[4])
                 bg = popt[5]
                 
-                # Compute uncertainty (Thompson et al., 2002)
+                # Compute uncertainty (Mortensen et al., 2010)
                 uncertainty = self._compute_uncertainty(sigma_x, amplitude, bg, self.pixel_size)
                 
                 # Compute chi-squared
@@ -124,29 +125,15 @@ class GaussianLSQFitter(BaseFitter):
         return result
     
     def _compute_uncertainty(self, sigma, intensity, background, pixel_size):
-        """Compute localization uncertainty (Thompson et al., 2002).
-        
-        σ² = (σ_PSF² + a²/12) / N + (8πσ_PSF⁴b²) / (a²N²)
-        
-        where:
-        σ_PSF = PSF standard deviation
-        a = pixel size  
-        N = signal photons
-        b = background photons per pixel
+        """Localization uncertainty in nm (Mortensen et al. 2010, least squares; see uncertainty.py).
+
+        intensity and background are the fitted amplitude and offset in camera counts: N = amplitude in
+        photons, b^2 = background photons per pixel after subtracting the camera baseline, and the EMCCD
+        excess-noise factor applies when em_gain > 1.
         """
-        sigma_nm = sigma * pixel_size
-        N = intensity * self.photons_per_adu
-        b = background * self.photons_per_adu
-        a = pixel_size
-        
-        if N <= 0:
-            return np.inf
-            
-        term1 = (sigma_nm**2 + a**2/12) / N
-        term2 = (8 * np.pi * sigma_nm**4 * b**2) / (a**2 * N**2)
-        
-        uncertainty = np.sqrt(term1 + term2)
-        return uncertainty
+        return localization_uncertainty(
+            sigma, self.counts_to_photons(intensity), self.counts_to_photons(background, subtract_baseline=True),
+            pixel_size, estimator='lsq', excess_factor=self.excess_noise_factor())
 
 
 class GaussianMLEFitter(BaseFitter):
@@ -187,7 +174,7 @@ class GaussianMLEFitter(BaseFitter):
             region = image[r0:r1, c0:c1].astype(float)
             
             # Convert to photon counts
-            region_photons = (region - self.baseline) * self.photons_per_adu
+            region_photons = self.counts_to_photons(region, subtract_baseline=True)
             region_photons = np.maximum(region_photons, 0.1)  # Avoid log(0)
             
             # Create coordinate grids
@@ -269,19 +256,10 @@ class GaussianMLEFitter(BaseFitter):
         return result
     
     def _compute_mle_uncertainty(self, sigma, intensity, background):
-        """Compute MLE uncertainty (Mortensen et al., 2010)."""
-        sigma_nm = sigma * self.pixel_size
-        N = intensity
-        b = background
-        a = self.pixel_size
-        
-        if N <= 0:
-            return np.inf
-            
-        # Simplified Cramér-Rao bound for MLE
-        var = (sigma_nm**2 / N) * (16/9 + 8*np.pi*sigma_nm**2*b/(N*a**2))
-        
-        return np.sqrt(var)
+        """Localization uncertainty in nm (Mortensen et al. 2010, maximum likelihood; see uncertainty.py).
+        The MLE fit already works in photons (baseline subtracted, EM gain divided out)."""
+        return localization_uncertainty(sigma, intensity, background, self.pixel_size,
+                                        estimator='mle', excess_factor=self.excess_noise_factor())
 
 
 class RadialSymmetryFitter(BaseFitter):

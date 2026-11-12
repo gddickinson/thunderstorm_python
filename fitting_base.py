@@ -10,6 +10,8 @@ fitting.py, so `from thunderstorm_python.fitting import gaussian_2d` still works
 import numpy as np
 from scipy.special import erf
 
+from .uncertainty import excess_noise_factor
+
 class LocalizationResult:
     """Container for localization results."""
     
@@ -82,7 +84,18 @@ class BaseFitter:
         if baseline is not None:
             self.baseline = baseline
         if em_gain is not None:
+            if em_gain < 1:
+                raise ValueError("em_gain must be >= 1 (1 = no electron multiplication)")
             self.em_gain = em_gain
+
+    def counts_to_photons(self, counts, subtract_baseline=False):
+        """Camera counts (ADU) -> photons: (counts [- baseline]) * photons_per_adu / em_gain."""
+        c = counts - self.baseline if subtract_baseline else counts
+        return c * self.photons_per_adu / self.em_gain
+
+    def excess_noise_factor(self):
+        """EMCCD excess-noise factor for the uncertainty (2 if em_gain > 1, else 1)."""
+        return excess_noise_factor(self.em_gain)
             
     def fit(self, image, positions, fit_radius=3):
         """Fit PSF at given positions.

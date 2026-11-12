@@ -34,9 +34,12 @@ class ThunderSTORM:
     photons_per_adu : float
         Photoelectrons per A/D count
     baseline : float
-        Camera baseline offset
+        Camera baseline offset (counts), subtracted before converting the
+        background to photons
     em_gain : float
-        EM gain (for EMCCD cameras)
+        EM gain (EMCCD cameras; 1 = none). Counts are divided by it when
+        converted to photons, and when > 1 the localization uncertainty
+        includes the EMCCD excess-noise factor F = 2 (Mortensen et al. 2010).
     """
     
     def __init__(self, 

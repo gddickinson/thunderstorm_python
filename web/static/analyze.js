@@ -46,6 +46,7 @@ route('analyze', async () => {
       <label class="chk" for="use_file_px"><input type="checkbox" id="use_file_px" ${p0.use_file_pixel_size ? 'checked' : ''}> use the TIFF's own pixel size if it records one</label>
       <label for="photons_per_adu">Photons per ADU</label><input id="photons_per_adu" type="number" min="0" step="any" value="${p0.photons_per_adu}">
       <label for="baseline">Baseline <span class="unit">ADU</span></label><input id="baseline" type="number" min="0" step="any" value="${p0.baseline}">
+      <label for="em_gain">EM gain <span class="unit">1 = none</span></label><input id="em_gain" type="number" min="1" step="any" value="${p0.em_gain ?? 1}">
       <p class="hint" id="camhint"></p>
     </fieldset>
     <button type="submit" id="runbtn">Run analysis</button><button type="button" class="alt" id="reset">Defaults</button>
@@ -60,11 +61,11 @@ route('analyze', async () => {
   const syncSource = () => {
     const demo = source() === 'demo';
     $('#upwrap').classList.toggle('hide', demo);
-    ['pixel_size', 'photons_per_adu', 'baseline', 'use_file_px'].forEach(id => { $('#' + id).disabled = demo; });
-    $('#camhint').textContent = demo ? `The demo is in photon counts with no camera offset: ${cam.pixel_size} nm/px, 1 photon per ADU, baseline 0.`
+    ['pixel_size', 'photons_per_adu', 'baseline', 'em_gain', 'use_file_px'].forEach(id => { $('#' + id).disabled = demo; });
+    $('#camhint').textContent = demo ? `The demo is in photon counts with no camera offset: ${cam.pixel_size} nm/px, 1 photon per ADU, baseline 0, no EM gain.`
       : 'Positions are converted to nm with this pixel size; the value used (and whether it came from the file) is shown with the result.';
-    if (demo) { $('#pixel_size').value = cam.pixel_size; $('#photons_per_adu').value = cam.photons_per_adu; $('#baseline').value = cam.baseline; }
-    else { $('#pixel_size').value = info.defaults.pixel_size; $('#photons_per_adu').value = info.defaults.photons_per_adu; $('#baseline').value = info.defaults.baseline; }
+    if (demo) { $('#pixel_size').value = cam.pixel_size; $('#photons_per_adu').value = cam.photons_per_adu; $('#baseline').value = cam.baseline; $('#em_gain').value = cam.em_gain; }
+    else { $('#pixel_size').value = info.defaults.pixel_size; $('#photons_per_adu').value = info.defaults.photons_per_adu; $('#baseline').value = info.defaults.baseline; $('#em_gain').value = info.defaults.em_gain; }
   };
   form.querySelectorAll('input[name=source]').forEach(r => r.addEventListener('change', syncSource));
   syncSource();
@@ -72,6 +73,7 @@ route('analyze', async () => {
   const collect = () => {
     const p = { threshold_expression: $('#thr').value.trim(), fit_radius: +$('#fit_radius').value,
       pixel_size: +$('#pixel_size').value, photons_per_adu: +$('#photons_per_adu').value, baseline: +$('#baseline').value,
+      em_gain: +$('#em_gain').value,
       use_file_pixel_size: $('#use_file_px').checked };
     for (const [k] of KINDS) {
       p[k + '_type'] = $(`#${k}_type`).value; p[k + '_params'] = {};
@@ -81,6 +83,7 @@ route('analyze', async () => {
       });
     }
     if (!(p.pixel_size > 0)) throw new Error('Pixel size must be a positive number of nm.');
+    if (!(p.em_gain >= 1)) throw new Error('EM gain must be at least 1 (1 = no electron multiplication).');
     if (!Number.isInteger(p.fit_radius) || p.fit_radius < 1 || p.fit_radius > 10) throw new Error('Fit radius must be a whole number from 1 to 10.');
     if (!p.threshold_expression) throw new Error('Enter a threshold expression or a number.');
     return p;

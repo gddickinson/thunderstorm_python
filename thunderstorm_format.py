@@ -18,8 +18,9 @@ Conventions (stated here because they differ from the pipeline's own dict):
 - intensity [photon], offset [photon]: fitted amplitude and background
   converted to photons. Fitters that work in camera counts (gaussian_lsq,
   radial_symmetry, centroid) are converted with (value - baseline) *
-  photons_per_adu for the offset and value * photons_per_adu for the
-  intensity; gaussian_mle already works in photons and is copied unchanged.
+  photons_per_adu / em_gain for the offset and value * photons_per_adu /
+  em_gain for the intensity; gaussian_mle already works in photons and is
+  copied unchanged.
 - uncertainty [nm]: the uncertainty computed by this package's fitter.
 
 thunderSTORM's bkgstd column is not written: this package does not estimate
@@ -33,7 +34,7 @@ PHOTON_FITTERS = ('gaussian_mle',)
 
 
 def to_thunderstorm_columns(localizations, pixel_size, photons_per_adu=1.0,
-                            baseline=0.0, fitter_type='gaussian_lsq'):
+                            baseline=0.0, fitter_type='gaussian_lsq', em_gain=1.0):
     """Return an ordered dict of thunderSTORM columns (numpy arrays).
 
     Parameters
@@ -49,6 +50,8 @@ def to_thunderstorm_columns(localizations, pixel_size, photons_per_adu=1.0,
         Camera offset in counts (subtracted from the background).
     fitter_type : str
         The fitter that produced the localizations (decides photon conversion).
+    em_gain : float
+        EM gain (counts are divided by it).
     """
     n = len(localizations['x'])
     half = pixel_size / 2.0
@@ -57,8 +60,8 @@ def to_thunderstorm_columns(localizations, pixel_size, photons_per_adu=1.0,
     intensity = np.asarray(localizations.get('intensity', np.full(n, np.nan)), float)
     background = np.asarray(localizations.get('background', np.full(n, np.nan)), float)
     if fitter_type not in PHOTON_FITTERS:
-        intensity = intensity * photons_per_adu
-        background = (background - baseline) * photons_per_adu
+        intensity = intensity * photons_per_adu / em_gain
+        background = (background - baseline) * photons_per_adu / em_gain
 
     cols = {
         'id': np.arange(1, n + 1),

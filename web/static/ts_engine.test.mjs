@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { FILTERS, evalExpression, img, threshold } from './ts_engine.js';
-import { analyzeFrame, erf, LOC_KEYS } from './ts_fit.js';
+import { analyzeFrame, erf, LOC_KEYS, mortensenLSQ } from './ts_fit.js';
 import { evaluateFrame, renderGaussian, toThunderstormColumns } from './ts_render.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -19,6 +19,9 @@ for (const [x, v] of [[0.5, 0.5204998778130465], [1, 0.8427007929497149], [2.5, 
 }
 check(evalExpression('2*(3+4)-1/2', () => undefined) === 13.5, 'arithmetic');
 check(evalExpression('-2**2', () => undefined) === -4, 'unary minus binds looser than **');
+// hand-computed Mortensen least-squares case (see tests/test_uncertainty.py): 6.2793 nm, x sqrt(2) with EM gain
+check(close(mortensenLSQ(1.3, 1000, 10, 100), 6.2793, 1e-4), 'Mortensen LSQ');
+check(close(mortensenLSQ(1.3, 1000, 10, 100, 2), 6.2793 * Math.SQRT2, 1e-4), 'Mortensen LSQ, EMCCD');
 
 // Tolerances: positions in nm, the rest relative. Both sides run MINPACK lmdif with the same number of function
 // evaluations; rounding differences (finite-difference Jacobian) leave ~1e-8 relative differences in the parameters.
@@ -67,7 +70,7 @@ fx.evaluate.truth.forEach((gt, i) => {
 });
 
 // thunderSTORM-format export (thunderstorm_format.to_thunderstorm_columns)
-const E = fx.export, cols = toThunderstormColumns(ref, { pixelSize: E.pixel_size, photonsPerAdu: E.photons_per_adu, baseline: E.baseline });
+const E = fx.export, cols = toThunderstormColumns(ref, { pixelSize: E.pixel_size, photonsPerAdu: E.photons_per_adu, baseline: E.baseline, emGain: E.em_gain });
 check(JSON.stringify(Object.keys(cols)) === JSON.stringify(Object.keys(E.columns)), `export columns ${Object.keys(cols)}`);
 for (const [k, vals] of Object.entries(E.columns)) vals.forEach((v, i) => check(close(cols[k][i], v, 1e-9, 1e-12), `export ${k}[${i}]`));
 

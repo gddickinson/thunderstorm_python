@@ -51,7 +51,6 @@ def options():
 def defaults():
     """Pipeline defaults (ThunderSTORM.__init__ + analyze_stack) with each component's own parameter defaults."""
     d = _defaults(ThunderSTORM.__init__)
-    d.pop("em_gain", None)  # stored by the fitters but not used by any of them, so not offered
     d["fit_radius"] = _defaults(ThunderSTORM.analyze_stack)["fit_radius"]
     for kind in REGISTRIES:
         cls = REGISTRIES[kind][d[f"{kind}_type"]]
@@ -104,6 +103,7 @@ def parse_params(p):
     kw["pixel_size"] = _num(p.get("pixel_size", d["pixel_size"]), "pixel size (nm)", 1, 10000)
     kw["photons_per_adu"] = _num(p.get("photons_per_adu", d["photons_per_adu"]), "photons per ADU", 1e-6, 1e6)
     kw["baseline"] = _num(p.get("baseline", d["baseline"]), "baseline (ADU)", 0, 1e6)
+    kw["em_gain"] = _num(p.get("em_gain", d["em_gain"]), "EM gain", 1, 1e5)
     fit_radius = _num(p.get("fit_radius", d["fit_radius"]), "fit radius", 1, 10, integer=True)
     return kw, fit_radius
 

@@ -18,7 +18,7 @@ SIM = {"seed": 2024, "image_size": 64, "n_frames": 150, "n_molecules": 400, "pat
        "pixel_size": 100.0, "psf_sigma": 150.0, "photons_per_molecule": 1000.0, "background_photons": 10.0,
        "p_on": 0.01, "p_off": 0.3, "p_bleach": 0.01}
 # Camera settings that match the simulation (photon counts, no offset).
-CAMERA = {"pixel_size": SIM["pixel_size"], "photons_per_adu": 1.0, "baseline": 0.0}
+CAMERA = {"pixel_size": SIM["pixel_size"], "photons_per_adu": 1.0, "baseline": 0.0, "em_gain": 1.0}
 TOLERANCE_NM = PerformanceEvaluator().tolerance
 
 

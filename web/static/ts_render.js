@@ -70,8 +70,8 @@ export function evaluateMovie(locs, truth, nFrames, tolerance = 100) {
 const PHOTON_FITTERS = ['gaussian_mle'];
 const allclose = (a, b) => a.every((v, i) => (v === null && b[i] === null) || (v !== null && b[i] !== null && Math.abs(v - b[i]) <= 1e-8 + 1e-5 * Math.abs(b[i])));
 
-// thunderstorm_format.to_thunderstorm_columns: 1-based frame, corner-origin nm, sigma in nm, photons.
-export function toThunderstormColumns(locs, { pixelSize, photonsPerAdu = 1, baseline = 0, fitterType = 'gaussian_lsq' }) {
+// thunderstorm_format.to_thunderstorm_columns: 1-based frame, corner-origin nm, sigma in nm, photons (/ EM gain).
+export function toThunderstormColumns(locs, { pixelSize, photonsPerAdu = 1, baseline = 0, fitterType = 'gaussian_lsq', emGain = 1 }) {
   const n = locs.x.length, half = pixelSize / 2, ph = !PHOTON_FITTERS.includes(fitterType);
   const nn = (v, f) => (v === null || v === undefined ? null : f(v));
   const sx = locs.sigma_x, sy = locs.sigma_y;
@@ -79,8 +79,8 @@ export function toThunderstormColumns(locs, { pixelSize, photonsPerAdu = 1, base
     'x [nm]': locs.x.map(v => nn(v, a => a + half)), 'y [nm]': locs.y.map(v => nn(v, a => a + half)) };
   if (allclose(sx, sy)) cols['sigma [nm]'] = sx.map(v => nn(v, a => a * pixelSize));
   else { cols['sigma1 [nm]'] = sx.map(v => nn(v, a => a * pixelSize)); cols['sigma2 [nm]'] = sy.map(v => nn(v, a => a * pixelSize)); }
-  cols['intensity [photon]'] = locs.intensity.map(v => nn(v, a => (ph ? a * photonsPerAdu : a)));
-  cols['offset [photon]'] = locs.background.map(v => nn(v, a => (ph ? (a - baseline) * photonsPerAdu : a)));
+  cols['intensity [photon]'] = locs.intensity.map(v => nn(v, a => (ph ? a * photonsPerAdu / emGain : a)));
+  cols['offset [photon]'] = locs.background.map(v => nn(v, a => (ph ? (a - baseline) * photonsPerAdu / emGain : a)));
   cols['uncertainty [nm]'] = locs.uncertainty.map(v => v);
   return cols;
 }

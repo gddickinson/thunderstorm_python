@@ -31,9 +31,12 @@ route('method', async () => {
     b = median of the window, A = maximum − b. A fit that does not converge in 1000 evaluations is kept at the candidate pixel with infinite
     uncertainty. Maximum-likelihood (Poisson), radial-symmetry and centroid fitters are also in the package (local app).</p>
   <h2>5. Localisation uncertainty</h2>
-  <p>From the fitted width, photon count N = A × photons/ADU and background b × photons/ADU, with pixel size a (Thompson, Larson &amp; Webb 2002,
-    as written in <code>GaussianLSQFitter._compute_uncertainty</code>):</p>
-  <p class="eq">σ<sub>xy</sub>² = (s² + a²/12) / N + 8π s⁴ b² / (a² N²),  s = σₓ · a</p>
+  <p>Mortensen et al. (2010) for a Gaussian fitted by least squares (<code>uncertainty.py</code>; the maximum-likelihood fitter uses the
+    paper's MLE expression):</p>
+  <p class="eq">σ<sub>xy</sub>² = F · (s<sub>a</sub>²/N) · (16/9 + 8π s<sub>a</sub>² b² / (N a²)),  s<sub>a</sub>² = s² + a²/12</p>
+  <p>s = PSF sigma in nm, a = pixel size, N = signal photons = amplitude × photons/ADU ÷ EM gain, b² = background photons per pixel
+    = (fitted background − baseline) × photons/ADU ÷ EM gain (the Poisson variance of the background), F = 2 for an EMCCD (EM gain &gt; 1),
+    otherwise 1.</p>
   <h2>6. Units and coordinates</h2>
   <ul>
     <li>The camera pixel size (nm) is always explicit: the demo states it, and for a TIFF the app uses the file's own value (OME
@@ -47,6 +50,8 @@ route('method', async () => {
   <p><code>GaussianRenderer</code> adds, for every localisation, a Gaussian of peak 1 and a fixed sigma (default 20 nm) or the localisation's own
     uncertainty, on a fine grid (default 10 nm per pixel), cut off at 3 sigma.</p>
   <h2>Reference</h2>
+  <p>Mortensen K. I., Churchman L. S., Spudich J. A. &amp; Flyvbjerg H. (2010). Optimized localization analysis for single-molecule
+    tracking and super-resolution microscopy. <i>Nature Methods</i> 7(5), 377–381. doi:10.1038/nmeth.1447</p>
   <p>Ovesný M., Křížek P., Borkovec J., Švindrych Z. &amp; Hagen G. M. (2014). ThunderSTORM: a comprehensive ImageJ plug-in for PALM and STORM
     data analysis and super-resolution imaging. <i>Bioinformatics</i> 30(16), 2389–2390.</p>`;
 });

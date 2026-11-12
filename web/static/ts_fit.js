@@ -69,16 +69,24 @@ export function curveFit(xs, ys, data, p0, integrated) {
 
 const median = a => { const s = Float64Array.from(a).sort(), n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; };
 
-// fitting.GaussianLSQFitter._compute_uncertainty (Thompson et al. 2002), sigma in px, result in nm.
-export function thompson(sigma, intensity, background, pixelSize, photonsPerAdu) {
-  const s = sigma * pixelSize, N = intensity * photonsPerAdu, b = background * photonsPerAdu, a = pixelSize;
-  if (N <= 0) return Infinity;
-  return Math.sqrt((s * s + a * a / 12) / N + (8 * Math.PI * s ** 4 * b * b) / (a * a * N * N));
+// uncertainty.localization_uncertainty, least-squares form (Mortensen et al. 2010, doi:10.1038/nmeth.1447):
+// var = F (sa^2/N) (16/9 + 8 pi sa^2 b^2 / (N a^2)), sa^2 = s^2 + a^2/12, b^2 = background photons per pixel.
+export function mortensenLSQ(sigmaPx, photons, bgPhotons, pixelSize, excess = 1) {
+  if (!Number.isFinite(photons) || photons <= 0) return Infinity;
+  const a = pixelSize, b2 = Math.max(bgPhotons, 0), sa2 = (sigmaPx * a) ** 2 + a * a / 12.0;
+  const v = sa2 / photons * (16.0 / 9.0 + 8.0 * Math.PI * sa2 * b2 / (photons * a * a));
+  return Math.sqrt(excess * v);
 }
 
+// BaseFitter.counts_to_photons and the EMCCD excess-noise factor.
+export const camera = ({ photonsPerAdu = 1, baseline = 0, emGain = 1 } = {}) => ({
+  photons: (c, sub = false) => (sub ? c - baseline : c) * photonsPerAdu / emGain,
+  excess: emGain > 1 ? 2.0 : 1.0,
+});
+
 // GaussianLSQFitter.fit: positions [[row, col]] -> localisations in camera pixels.
-export function fitLSQ(raw, positions, { fitRadius = 3, integrated = true, initialSigma = 1.3, pixelSize = 100, photonsPerAdu = 1 } = {}) {
-  const out = [];
+export function fitLSQ(raw, positions, { fitRadius = 3, integrated = true, initialSigma = 1.3, pixelSize = 100, photonsPerAdu = 1, baseline = 0, emGain = 1 } = {}) {
+  const out = [], cam = camera({ photonsPerAdu, baseline, emGain });
   for (const pos of positions) {
     const row = Math.trunc(pos[0]), col = Math.trunc(pos[1]);
     const r0 = Math.max(0, row - fitRadius), r1 = Math.min(raw.h, row + fitRadius + 1);
@@ -94,7 +102,7 @@ export function fitLSQ(raw, positions, { fitRadius = 3, integrated = true, initi
     }
     const [x0, y0, A, sx, sy, bg] = f.p;
     out.push({ x: x0 + c0, y: y0 + r0, intensity: A, background: bg, sigma_x: Math.abs(sx), sigma_y: Math.abs(sy),
-      uncertainty: thompson(Math.abs(sx), A, bg, pixelSize, photonsPerAdu), chi_squared: f.S });
+      uncertainty: mortensenLSQ(Math.abs(sx), cam.photons(A), cam.photons(bg, true), pixelSize, cam.excess), chi_squared: f.S });
   }
   return out;
 }
@@ -113,7 +121,8 @@ export function analyzeFrame(raw, frame, params, trace = null) {
   if (trace) trace.push({ frame, threshold: thr, positions: pos });
   const fp = params.fitter_params || {};
   const fits = fitLSQ(raw, pos, { fitRadius: params.fit_radius, integrated: fp.integrated !== false,
-    initialSigma: fp.initial_sigma ?? 1.3, pixelSize: params.pixel_size, photonsPerAdu: params.photons_per_adu });
+    initialSigma: fp.initial_sigma ?? 1.3, pixelSize: params.pixel_size, photonsPerAdu: params.photons_per_adu,
+    baseline: params.baseline ?? 0, emGain: params.em_gain ?? 1 });
   return fits.map(f => ({ ...f, frame, x: f.x * params.pixel_size, y: f.y * params.pixel_size }));
 }
 
