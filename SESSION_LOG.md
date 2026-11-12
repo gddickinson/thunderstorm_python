@@ -36,3 +36,19 @@ infinite uncertainty; postprocessing.py is over 500 lines.
 
 Tests: `pytest tests` 82 passed; `node web/static/ts_engine.test.mjs` ok; screenshots.py --static and --base all ok,
 no overflow at 390 px. Nothing ran on the Mac mini.
+
+## 2026-11-12 (later): follow-up fixes requested by the lead
+
+1. Localization uncertainty now Mortensen et al. 2010 (Nat Methods 7:377, doi:10.1038/nmeth.1447, checked on
+   Crossref): least-squares and MLE forms, b^2 = background photons after subtracting the baseline, EMCCD excess
+   factor F = 2 when em_gain > 1 (`uncertainty.py`, hand-computed tests). thunderSTORM has no written formula beyond
+   its source code, which was not consulted; this is from the paper.
+2. `connectivity` (4 / 8-neighbourhood), `elliptical` (one vs two PSF widths) and `em_gain` (photon conversion +
+   excess noise) now do what their docstrings say; each tested.
+3. Failed fits are no longer localizations: `ThunderSTORM.get_rejected()` lists them with a reason.
+4. Pixel-centre origin documented in pipeline.py, utils.save_localizations_csv and a README section; README quick
+   start import (`quick_analysis`) fixed (helpers moved to quick.py).
+5. postprocessing.py split (drift.py); every file now under 500 lines.
+JS port updated for 1-3 (fixture regenerated). Demo: 1,497 / 1,499 localisations within 0.01 nm of Python.
+Tests: pytest 102 passed; node ok; screenshots --static / --base all ok; 390 px no overflow on every route.
+Still for George: the licence (README now says MIT, as LICENSE does).
