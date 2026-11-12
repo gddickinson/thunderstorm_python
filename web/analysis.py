@@ -18,8 +18,8 @@ from ..pipeline import ThunderSTORM
 JS_SUPPORTED = {"filter": ["wavelet", "gaussian", "dog", "none"],
                 "detector": ["local_maximum", "non_maximum_suppression"],
                 "fitter": ["gaussian_lsq"]}
-# Constructor arguments that have no effect in the current code, so the UI does not offer them (see the report).
-INERT = {("fitter", "gaussian_lsq", "elliptical"), ("fitter", "gaussian_mle", "elliptical")}
+# Constructor arguments that have no effect in the current code, so the UI does not offer them (none at present).
+INERT = set()
 # Text parameters with a fixed set of values (shown as a select).
 CHOICES = {("detector", "local_maximum", "connectivity"): list(detection.LocalMaximumDetector.CONNECTIVITIES)}
 REGISTRIES = {"filter": filters.FILTER_TYPES, "detector": detection.DETECTOR_TYPES, "fitter": fitting.FITTER_TYPES}

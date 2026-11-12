@@ -38,11 +38,12 @@ export function erf(x) {
   return x * polevl(z, T) / p1evl(z, U);
 }
 
-// fitting_base.integrated_gaussian_2d / gaussian_2d, same operation order as NumPy, model - data as curve_fit does.
+// fitting_base.psf_model: integrated_gaussian_2d / gaussian_2d with one width (5 parameters) or two (elliptical, 6),
+// same operation order as NumPy, model - data as curve_fit does.
 function residuals(xs, ys, data, integrated) {
   const n = xs.length;
   return p => {
-    const [x0, y0, A, sx, sy, bg] = p, out = new Float64Array(n);
+    const [x0, y0, A, sx, sy, bg] = p.length === 6 ? p : [p[0], p[1], p[2], p[3], p[3], p[4]], out = new Float64Array(n);
     if (integrated) {
       const nx = Math.SQRT2 * sx, ny = Math.SQRT2 * sy;
       for (let i = 0; i < n; i++) {
@@ -85,7 +86,7 @@ export const camera = ({ photonsPerAdu = 1, baseline = 0, emGain = 1 } = {}) => 
 });
 
 // GaussianLSQFitter.fit: positions [[row, col]] -> localisations in camera pixels.
-export function fitLSQ(raw, positions, { fitRadius = 3, integrated = true, initialSigma = 1.3, pixelSize = 100, photonsPerAdu = 1, baseline = 0, emGain = 1 } = {}) {
+export function fitLSQ(raw, positions, { fitRadius = 3, integrated = true, elliptical = false, initialSigma = 1.3, pixelSize = 100, photonsPerAdu = 1, baseline = 0, emGain = 1 } = {}) {
   const out = [], cam = camera({ photonsPerAdu, baseline, emGain });
   for (const pos of positions) {
     const row = Math.trunc(pos[0]), col = Math.trunc(pos[1]);
@@ -93,16 +94,18 @@ export function fitLSQ(raw, positions, { fitRadius = 3, integrated = true, initi
     const c0 = Math.max(0, col - fitRadius), c1 = Math.min(raw.w, col + fitRadius + 1);
     const xs = [], ys = [], data = [];
     for (let y = r0; y < r1; y++) for (let x = c0; x < c1; x++) { xs.push(x - c0); ys.push(y - r0); data.push(raw.d[y * raw.w + x]); }
-    const bg0 = median(data), p0 = [col - c0, row - r0, Math.max(...data) - bg0, initialSigma, initialSigma, bg0];
+    const bg0 = median(data), A0 = Math.max(...data) - bg0;
+    const p0 = elliptical ? [col - c0, row - r0, A0, initialSigma, initialSigma, bg0] : [col - c0, row - r0, A0, initialSigma, bg0];
     const f = curveFit(xs, ys, data, p0, integrated);
     if (!f.ok) {
       out.push({ x: col, y: row, intensity: 0, background: 0, sigma_x: initialSigma, sigma_y: initialSigma,
         uncertainty: Infinity, chi_squared: Infinity, failed: true });
       continue;
     }
-    const [x0, y0, A, sx, sy, bg] = f.p;
-    out.push({ x: x0 + c0, y: y0 + r0, intensity: A, background: bg, sigma_x: Math.abs(sx), sigma_y: Math.abs(sy),
-      uncertainty: mortensenLSQ(Math.abs(sx), cam.photons(A), cam.photons(bg, true), pixelSize, cam.excess), chi_squared: f.S });
+    const [x0, y0, A, s1, s2, bg] = elliptical ? f.p : [f.p[0], f.p[1], f.p[2], f.p[3], f.p[3], f.p[4]];
+    const sx = Math.abs(s1), sy = Math.abs(s2);
+    out.push({ x: x0 + c0, y: y0 + r0, intensity: A, background: bg, sigma_x: sx, sigma_y: sy,
+      uncertainty: mortensenLSQ(Math.sqrt(sx * sy), cam.photons(A), cam.photons(bg, true), pixelSize, cam.excess), chi_squared: f.S });
   }
   return out;
 }
@@ -120,7 +123,7 @@ export function analyzeFrame(raw, frame, params, trace = null) {
   const pos = DETECTORS[dt](filtered, thr, params.detector_params || {});
   if (trace) trace.push({ frame, threshold: thr, positions: pos });
   const fp = params.fitter_params || {};
-  const fits = fitLSQ(raw, pos, { fitRadius: params.fit_radius, integrated: fp.integrated !== false,
+  const fits = fitLSQ(raw, pos, { fitRadius: params.fit_radius, integrated: fp.integrated !== false, elliptical: !!fp.elliptical,
     initialSigma: fp.initial_sigma ?? 1.3, pixelSize: params.pixel_size, photonsPerAdu: params.photons_per_adu,
     baseline: params.baseline ?? 0, emGain: params.em_gain ?? 1 });
   return fits.map(f => ({ ...f, frame, x: f.x * params.pixel_size, y: f.y * params.pixel_size }));

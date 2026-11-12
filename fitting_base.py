@@ -166,3 +166,40 @@ def integrated_gaussian_2d(xy, x0, y0, amplitude, sigma_x, sigma_y, background):
     
     g = amplitude * int_x * int_y
     return (g + background).ravel()
+
+
+def psf_model(integrated=True, elliptical=False):
+    """Model function for curve_fit / likelihoods.
+
+    elliptical=False: f(xy, x0, y0, amplitude, sigma, background), one width.
+    elliptical=True:  f(xy, x0, y0, amplitude, sigma_x, sigma_y, background).
+    """
+    base = integrated_gaussian_2d if integrated else gaussian_2d
+    if elliptical:
+        return base
+
+    def symmetric(xy, x0, y0, amplitude, sigma, background):
+        return base(xy, x0, y0, amplitude, sigma, sigma, background)
+    return symmetric
+
+
+def initial_params(x0, y0, amplitude, sigma, background, elliptical=False):
+    """Start vector matching psf_model(..., elliptical)."""
+    if elliptical:
+        return [x0, y0, amplitude, sigma, sigma, background]
+    return [x0, y0, amplitude, sigma, background]
+
+
+def split_params(p, elliptical=False):
+    """(x0, y0, amplitude, sigma_x, sigma_y, background) from a parameter vector; widths made positive."""
+    if elliptical:
+        x0, y0, amp, sx, sy, bg = p
+    else:
+        x0, y0, amp, sx, bg = p
+        sy = sx
+    return x0, y0, amp, abs(sx), abs(sy), bg
+
+
+def effective_sigma(sigma_x, sigma_y):
+    """Single PSF width for the uncertainty formula: geometric mean sqrt(sigma_x * sigma_y)."""
+    return float(np.sqrt(sigma_x * sigma_y))

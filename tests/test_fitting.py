@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from thunderstorm_python.fitting import (
-    LocalizationResult, GaussianLSQFitter, CentroidFitter,
+    LocalizationResult, GaussianLSQFitter, GaussianMLEFitter, CentroidFitter,
     RadialSymmetryFitter, create_fitter, gaussian_2d
 )
 
@@ -99,3 +99,24 @@ class TestCreateFitter:
     def test_invalid_raises(self):
         with pytest.raises(ValueError):
             create_fitter('nonexistent')
+
+
+class TestEllipticalOption:
+    """Regression: `elliptical` was ignored; both settings fitted separate sigma_x and sigma_y."""
+
+    @staticmethod
+    def _spot(sx, sy):
+        yy, xx = np.mgrid[0:15, 0:15]
+        return 1000 * np.exp(-((xx - 7.3) ** 2 / (2 * sx ** 2) + (yy - 6.8) ** 2 / (2 * sy ** 2))) + 10
+
+    @pytest.mark.parametrize('cls', [GaussianLSQFitter, GaussianMLEFitter])
+    def test_symmetric_fit_reports_one_width(self, cls):
+        res = cls(integrated=False, elliptical=False).fit(self._spot(1.2, 2.0), np.array([[7, 7]]), fit_radius=5)
+        assert res.sigma_x[0] == res.sigma_y[0]
+        assert 1.2 < res.sigma_x[0] < 2.0
+
+    @pytest.mark.parametrize('cls', [GaussianLSQFitter, GaussianMLEFitter])
+    def test_elliptical_fit_recovers_both_widths(self, cls):
+        res = cls(integrated=False, elliptical=True).fit(self._spot(1.2, 2.0), np.array([[7, 7]]), fit_radius=5)
+        assert res.sigma_x[0] == pytest.approx(1.2, abs=0.05) and res.sigma_y[0] == pytest.approx(2.0, abs=0.05)
+        assert res.x[0] == pytest.approx(7.3, abs=0.02) and res.y[0] == pytest.approx(6.8, abs=0.02)

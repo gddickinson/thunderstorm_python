@@ -17,6 +17,7 @@ from scipy import optimize, ndimage
 
 from .fitting_base import (  # noqa: F401  (re-exported for backward compatibility)
     LocalizationResult, BaseFitter, gaussian_2d, integrated_gaussian_2d,
+    psf_model, initial_params, split_params, effective_sigma,
 )
 from .uncertainty import localization_uncertainty
 
@@ -29,7 +30,9 @@ class GaussianLSQFitter(BaseFitter):
     integrated : bool
         Use integrated Gaussian model
     elliptical : bool
-        Fit elliptical Gaussian (different sigma_x, sigma_y)
+        False (default): one PSF width (sigma_x = sigma_y, 5 parameters).
+        True: separate sigma_x and sigma_y (6 parameters); the uncertainty
+        then uses sqrt(sigma_x * sigma_y).
     initial_sigma : float
         Initial guess for sigma
     """
@@ -65,13 +68,8 @@ class GaussianLSQFitter(BaseFitter):
             y0_init = row - r0
             sigma_init = self.initial_sigma
             
-            if self.elliptical:
-                p0 = [x0_init, y0_init, amplitude_init, sigma_init, sigma_init, background_init]
-            else:
-                p0 = [x0_init, y0_init, amplitude_init, sigma_init, sigma_init, background_init]
-            
-            # Choose model
-            model = integrated_gaussian_2d if self.integrated else gaussian_2d
+            p0 = initial_params(x0_init, y0_init, amplitude_init, sigma_init, background_init, self.elliptical)
+            model = psf_model(self.integrated, self.elliptical)
             
             try:
                 # Fit
@@ -84,15 +82,13 @@ class GaussianLSQFitter(BaseFitter):
                 )
                 
                 # Convert back to image coordinates
-                x_fit = popt[0] + c0
-                y_fit = popt[1] + r0
-                amplitude = popt[2]
-                sigma_x = abs(popt[3])
-                sigma_y = abs(popt[4])
-                bg = popt[5]
+                x0, y0, amplitude, sigma_x, sigma_y, bg = split_params(popt, self.elliptical)
+                x_fit = x0 + c0
+                y_fit = y0 + r0
                 
                 # Compute uncertainty (Mortensen et al., 2010)
-                uncertainty = self._compute_uncertainty(sigma_x, amplitude, bg, self.pixel_size)
+                uncertainty = self._compute_uncertainty(
+                    effective_sigma(sigma_x, sigma_y), amplitude, bg, self.pixel_size)
                 
                 # Compute chi-squared
                 fitted_data = model((x_coords, y_coords), *popt).reshape(region.shape)
@@ -147,7 +143,8 @@ class GaussianMLEFitter(BaseFitter):
     integrated : bool
         Use integrated Gaussian model
     elliptical : bool
-        Fit elliptical Gaussian
+        False (default): one PSF width; True: separate sigma_x and sigma_y
+        (the uncertainty then uses sqrt(sigma_x * sigma_y)).
     initial_sigma : float
         Initial guess for sigma
     """
@@ -187,10 +184,10 @@ class GaussianMLEFitter(BaseFitter):
             y0_init = row - r0
             sigma_init = self.initial_sigma
             
-            p0 = [x0_init, y0_init, amplitude_init, sigma_init, sigma_init, background_init]
+            p0 = initial_params(x0_init, y0_init, amplitude_init, sigma_init, background_init, self.elliptical)
             
             # Negative log-likelihood function
-            model = integrated_gaussian_2d if self.integrated else gaussian_2d
+            model = psf_model(self.integrated, self.elliptical)
             
             def neg_log_likelihood(params):
                 predicted = model((x_coords, y_coords), *params).reshape(region.shape)
@@ -210,24 +207,18 @@ class GaussianMLEFitter(BaseFitter):
                         (0, region.shape[1]),  # x0
                         (0, region.shape[0]),  # y0
                         (0, None),  # amplitude
-                        (0.5, 5),  # sigma_x
-                        (0.5, 5),  # sigma_y
+                    ] + [(0.5, 5)] * (2 if self.elliptical else 1) + [  # sigma(s)
                         (0, None)  # background
                     ]
                 )
                 
-                popt = res.x
-                
                 # Convert back to image coordinates
-                x_fit = popt[0] + c0
-                y_fit = popt[1] + r0
-                amplitude = popt[2]
-                sigma_x = abs(popt[3])
-                sigma_y = abs(popt[4])
-                bg = popt[5]
+                x0, y0, amplitude, sigma_x, sigma_y, bg = split_params(res.x, self.elliptical)
+                x_fit = x0 + c0
+                y_fit = y0 + r0
                 
                 # Compute uncertainty (for MLE with photon noise)
-                uncertainty = self._compute_mle_uncertainty(sigma_x, amplitude, bg)
+                uncertainty = self._compute_mle_uncertainty(effective_sigma(sigma_x, sigma_y), amplitude, bg)
                 
                 result.add_localization(
                     x=x_fit,
