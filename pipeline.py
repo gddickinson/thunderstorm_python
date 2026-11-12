@@ -104,7 +104,9 @@ class ThunderSTORM:
         Returns
         -------
         result : dict
-            Localization results for this frame
+            Localization results for this frame: x, y and uncertainty in nm,
+            sigma_x / sigma_y in camera pixels, intensity / background in the
+            fitter's units (ADU for LSQ, photons for MLE).
         """
         # Step 1: Filter image
         filtered = self.filter.apply(image)
@@ -121,8 +123,13 @@ class ThunderSTORM:
         if len(positions) > 0:
             fit_result = self.fitter.fit(image, positions, fit_radius=fit_radius)
             
-            # Convert to dict format
+            # Convert to dict format. Fitters work in camera pixels; the
+            # pipeline reports x/y in nm (pixel-centre origin: the centre of
+            # pixel (row 0, col 0) is at x = y = 0 nm, as in simulation.py).
+            # sigma_x/sigma_y stay in pixels; uncertainty is already in nm.
             result = fit_result.to_array()
+            result['x'] = result['x'] * self.pixel_size
+            result['y'] = result['y'] * self.pixel_size
             result['frame'] = np.full(len(fit_result), frame_number)
         else:
             # No detections
