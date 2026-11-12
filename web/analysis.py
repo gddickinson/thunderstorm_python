@@ -124,8 +124,11 @@ def run_pipeline(movie, params):
     keys = ["frame", "x", "y", "sigma_x", "sigma_y", "intensity", "background", "uncertainty", "chi_squared"]
     n = 0 if locs.get("x") is None else len(locs["x"])
     cols = {k: ([] if n == 0 else (_clean(locs[k]) if k != "frame" else [int(v) for v in locs[k]])) for k in keys}
+    rej = pipe.get_rejected()
     return {
         "engine": "python",
+        "rejected": {"frame": [int(v) for v in rej["frame"]], "x": _clean(rej["x"]), "y": _clean(rej["y"]),
+                     "reason": [str(v) for v in rej["reason"]]},
         "params": {**{k: v for k, v in kw.items()}, "fit_radius": fit_radius},
         "pixel_size_nm": kw["pixel_size"],
         "shape": list(np.asarray(movie).shape),

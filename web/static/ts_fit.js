@@ -85,7 +85,8 @@ export const camera = ({ photonsPerAdu = 1, baseline = 0, emGain = 1 } = {}) => 
   excess: emGain > 1 ? 2.0 : 1.0,
 });
 
-// GaussianLSQFitter.fit: positions [[row, col]] -> localisations in camera pixels.
+// GaussianLSQFitter.fit: positions [[row, col]] -> localisations in camera pixels (pixel-centre origin); failed fits
+// come back as { x: col, y: row, rejected: reason }.
 export function fitLSQ(raw, positions, { fitRadius = 3, integrated = true, elliptical = false, initialSigma = 1.3, pixelSize = 100, photonsPerAdu = 1, baseline = 0, emGain = 1 } = {}) {
   const out = [], cam = camera({ photonsPerAdu, baseline, emGain });
   for (const pos of positions) {
@@ -97,11 +98,10 @@ export function fitLSQ(raw, positions, { fitRadius = 3, integrated = true, ellip
     const bg0 = median(data), A0 = Math.max(...data) - bg0;
     const p0 = elliptical ? [col - c0, row - r0, A0, initialSigma, initialSigma, bg0] : [col - c0, row - r0, A0, initialSigma, bg0];
     const f = curveFit(xs, ys, data, p0, integrated);
-    if (!f.ok) {
-      out.push({ x: col, y: row, intensity: 0, background: 0, sigma_x: initialSigma, sigma_y: initialSigma,
-        uncertainty: Infinity, chi_squared: Infinity, failed: true });
-      continue;
-    }
+    // Failed fits are rejected, not localisations (fitting_base.rejection_reason; curve_fit RuntimeError).
+    if (!(f.info >= 1 && f.info <= 4)) { out.push({ x: col, y: row, rejected: 'fit did not converge' }); continue; }
+    if (!f.p.every(Number.isFinite)) { out.push({ x: col, y: row, rejected: 'non-finite fit parameters' }); continue; }
+    if (!(f.p[2] > 0)) { out.push({ x: col, y: row, rejected: 'non-positive fitted intensity' }); continue; }
     const [x0, y0, A, s1, s2, bg] = elliptical ? f.p : [f.p[0], f.p[1], f.p[2], f.p[3], f.p[3], f.p[4]];
     const sx = Math.abs(s1), sy = Math.abs(s2);
     out.push({ x: x0 + c0, y: y0 + r0, intensity: A, background: bg, sigma_x: sx, sigma_y: sy,
@@ -113,7 +113,8 @@ export function fitLSQ(raw, positions, { fitRadius = 3, integrated = true, ellip
 export const LOC_KEYS = ['frame', 'x', 'y', 'sigma_x', 'sigma_y', 'intensity', 'background', 'uncertainty', 'chi_squared'];
 
 // pipeline.ThunderSTORM.analyze_frame for the parts ported to JS. params has the /api/info "defaults" shape.
-export function analyzeFrame(raw, frame, params, trace = null) {
+// Returns the accepted localisations (nm); failed fits are appended to `rejected` as { frame, x, y, reason } (nm).
+export function analyzeFrame(raw, frame, params, trace = null, rejected = null) {
   const ft = params.filter_type, dt = params.detector_type;
   if (!FILTERS[ft]) throw new Error(`The ${ft} filter runs only in the local app (Python).`);
   if (!DETECTORS[dt]) throw new Error(`The ${dt} detector runs only in the local app (Python).`);
@@ -126,19 +127,25 @@ export function analyzeFrame(raw, frame, params, trace = null) {
   const fits = fitLSQ(raw, pos, { fitRadius: params.fit_radius, integrated: fp.integrated !== false, elliptical: !!fp.elliptical,
     initialSigma: fp.initial_sigma ?? 1.3, pixelSize: params.pixel_size, photonsPerAdu: params.photons_per_adu,
     baseline: params.baseline ?? 0, emGain: params.em_gain ?? 1 });
-  return fits.map(f => ({ ...f, frame, x: f.x * params.pixel_size, y: f.y * params.pixel_size }));
+  const px = params.pixel_size, ok = [];
+  for (const f of fits) {
+    if (f.rejected) { if (rejected) rejected.push({ frame, x: f.x * px, y: f.y * px, reason: f.rejected }); }
+    else ok.push({ ...f, frame, x: f.x * px, y: f.y * px });
+  }
+  return ok;
 }
 
 // Analyse a whole movie ({ w, h, n, frame(i) -> Float64Array }); returns columns like the Python API result.
 export function analyzeMovie(movie, params, onProgress = null) {
-  const cols = Object.fromEntries(LOC_KEYS.map(k => [k, []]));
+  const cols = Object.fromEntries(LOC_KEYS.map(k => [k, []])), rej = [];
   for (let f = 0; f < movie.n; f++) {
-    for (const l of analyzeFrame(img(movie.w, movie.h, movie.frame(f)), f, params)) {
+    for (const l of analyzeFrame(img(movie.w, movie.h, movie.frame(f)), f, params, null, rej)) {
       for (const k of LOC_KEYS) cols[k].push(Number.isFinite(l[k]) ? l[k] : null);
     }
     if (onProgress) onProgress(f + 1, movie.n);
   }
   return { engine: 'js', params, pixel_size_nm: params.pixel_size, shape: [movie.n, movie.h, movie.w],
     n: cols.x.length, locs: cols,
+    rejected: { frame: rej.map(r => r.frame), x: rej.map(r => r.x), y: rej.map(r => r.y), reason: rej.map(r => r.reason) },
     units: { x: 'nm', y: 'nm', uncertainty: 'nm', sigma_x: 'px', sigma_y: 'px', origin: 'pixel centre (pixel (0,0) centre at 0 nm)' } };
 }

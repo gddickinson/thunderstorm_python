@@ -9,6 +9,17 @@ const COLS = [['frame', 'frame', 0], ['x', 'x [nm]', 2], ['y', 'y [nm]', 2], ['s
   ['intensity', 'amplitude', 1], ['background', 'background', 2], ['uncertainty', 'uncertainty [nm]', 2], ['chi_squared', 'χ² (SSR)', 1]];
 const PAGE = 50;
 
+// Candidates whose PSF fit failed: not localisations, listed with the reason (pipeline.get_rejected()).
+function rejectedTable(r) {
+  const R = r.rejected || { frame: [], x: [], y: [], reason: [] }, n = R.frame.length;
+  if (!n) return '<p class="mute">None: every detected candidate gave a valid fit.</p>';
+  const rows = R.frame.slice(0, 200).map((fr, i) => `<tr><td>${fr + 1}</td><td>${f(R.x[i], 1)}</td><td>${f(R.y[i], 1)}</td><td>${esc(R.reason[i])}</td></tr>`);
+  return `<p class="small">${int(n)} candidate${n === 1 ? '' : 's'} whose fit failed. They are left out of the table above and of the CSV;
+    x / y are the candidate pixel centre in nm.${n > 200 ? ' First 200 shown.' : ''}</p>
+    <div class="scroll"><table class="tbl" aria-label="Rejected candidates"><thead><tr><th scope="col">frame</th><th scope="col">x [nm]</th>
+    <th scope="col">y [nm]</th><th scope="col">reason</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+}
+
 route('table', async () => {
   app().innerHTML = '<p class="mute">Analysing the demo movie with the default settings...</p>';
   const r = await ensureResult(), L = r.locs, p = r.params, n = L.x.length;
@@ -28,7 +39,9 @@ route('table', async () => {
   <div class="row"><div><label for="f0">From frame</label><input id="f0" type="number" min="1" value="1"></div>
     <div><label for="f1">To frame</label><input id="f1" type="number" min="1" value="${r.shape[0]}"></div></div>
   <div class="pager"><button type="button" class="alt" id="pp">Previous</button><span id="pi" class="small mute"></span><button type="button" class="alt" id="pn">Next</button></div>
-  <div class="scroll"><table class="tbl"><thead><tr>${COLS.map(([k, label]) => `<th scope="col"><button type="button" data-k="${k}">${label}</button></th>`).join('')}</tr></thead><tbody id="tb"></tbody></table></div>`;
+  <div class="scroll"><table class="tbl" aria-label="Localisations"><thead><tr>${COLS.map(([k, label]) => `<th scope="col"><button type="button" data-k="${k}">${label}</button></th>`).join('')}</tr></thead><tbody id="tb"></tbody></table></div>
+  <h2>Rejected candidates</h2>
+  ${rejectedTable(r)}`;
 
   let sortKey = 'frame', dir = 1, page = 0;
   const rows = () => {

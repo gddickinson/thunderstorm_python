@@ -27,9 +27,11 @@ route('method', async () => {
   <p>Around each candidate a (2r+1)×(2r+1) window of the <b>raw</b> frame (r = ${d.fit_radius} px) is fitted by least squares
     (<code>scipy.optimize.curve_fit</code>, Levenberg-Marquardt) with a Gaussian integrated over each pixel:</p>
   <p class="eq">model(x, y) = A · Eₓ · E_y + b,  Eₓ = ½ [erf((x + ½ − x₀)/(√2 σₓ)) − erf((x − ½ − x₀)/(√2 σₓ))]</p>
-  <p>Six parameters are free: x₀, y₀, amplitude A, σₓ, σ_y and background b. Start values: the candidate pixel, σ = ${d.fitter_params.initial_sigma} px,
-    b = median of the window, A = maximum − b. A fit that does not converge in 1000 evaluations is kept at the candidate pixel with infinite
-    uncertainty. Maximum-likelihood (Poisson), radial-symmetry and centroid fitters are also in the package (local app).</p>
+  <p>The free parameters are x₀, y₀, amplitude A, the width σ and background b. Start values: the candidate pixel, σ = ${d.fitter_params.initial_sigma} px,
+    b = median of the window, A = maximum − b. With <code>elliptical</code> on, σₓ and σ_y are fitted separately (six parameters);
+    by default one width is fitted (five). A candidate whose fit does not converge in 1000 evaluations, gives non-finite values or a
+    non-positive amplitude is <b>rejected</b>: it is left out of the localisations and listed separately with the reason
+    (<code>ThunderSTORM.get_rejected()</code>). Maximum-likelihood (Poisson), radial-symmetry and centroid fitters are also in the package (local app).</p>
   <h2>5. Localisation uncertainty</h2>
   <p>Mortensen et al. (2010) for a Gaussian fitted by least squares (<code>uncertainty.py</code>; the maximum-likelihood fitter uses the
     paper's MLE expression):</p>

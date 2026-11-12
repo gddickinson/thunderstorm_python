@@ -90,6 +90,8 @@ class ThunderSTORM:
         
         # Results
         self.localizations = None
+        self.rejected = None  # failed fits (see get_rejected)
+        self._frame_rejected = None
         self.images = None
         
     def analyze_frame(self, image, frame_number=0, fit_radius=3):
@@ -122,9 +124,16 @@ class ThunderSTORM:
         # Step 3: Detect molecules
         positions = self.detector.detect(filtered, threshold)
         
-        # Step 4: Fit PSF
+        # Step 4: Fit PSF. Failed fits are not returned; they are kept, with
+        # the reason, in self.rejected (see get_rejected).
+        self._frame_rejected = {'frame': np.array([], int), 'x': np.array([]), 'y': np.array([]),
+                                'reason': np.array([], dtype=object)}
         if len(positions) > 0:
             fit_result = self.fitter.fit(image, positions, fit_radius=fit_radius)
+            rej = fit_result.rejected_to_array()
+            self._frame_rejected = {'frame': np.full(len(rej['x']), frame_number),
+                                    'x': rej['x'] * self.pixel_size, 'y': rej['y'] * self.pixel_size,
+                                    'reason': rej['reason']}
             
             # Convert to dict format. Fitters work in camera pixels; the
             # pipeline reports x/y in nm (pixel-centre origin: the centre of
@@ -187,12 +196,15 @@ class ThunderSTORM:
         else:
             frame_iter = range(n_frames)
         
+        rejected = []
         for i in frame_iter:
             result = self.analyze_frame(images[i], frame_number=i, fit_radius=fit_radius)
             all_results.append(result)
+            rejected.append(self._frame_rejected)
         
         # Combine results
         self.localizations = self._combine_results(all_results)
+        self.rejected = {k: np.concatenate([r[k] for r in rejected]) for k in ('frame', 'x', 'y', 'reason')}
         
         return self.localizations
         
@@ -358,6 +370,17 @@ class ThunderSTORM:
         
         return image
         
+    def get_rejected(self):
+        """Candidates whose PSF fit failed in the last analyze_stack call.
+
+        Returns a dict of arrays: frame (0-based), x and y (nm, the candidate
+        pixel centre, same origin as the localizations) and reason
+        ('fit did not converge', 'non-positive fitted intensity', ...).
+        """
+        if self.rejected is None:
+            raise ValueError("Must analyze images first")
+        return self.rejected
+
     def get_statistics(self):
         """Get summary statistics of localizations.
         

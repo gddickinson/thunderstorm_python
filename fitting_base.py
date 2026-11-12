@@ -12,10 +12,18 @@ from scipy.special import erf
 
 from .uncertainty import excess_noise_factor
 
+
 class LocalizationResult:
-    """Container for localization results."""
+    """Container for localization results.
+
+    Positions are in camera pixels with a pixel-centre origin: the centre of
+    pixel (row 0, col 0) is (x, y) = (0, 0), x along columns, y along rows.
+    Candidates whose fit failed are not localizations: they go to the
+    `rejected` table (candidate pixel and a reason) instead.
+    """
     
     def __init__(self):
+        self.rejected = {'x': [], 'y': [], 'reason': []}  # failed fits (candidate pixel)
         self.x = []  # x position (col)
         self.y = []  # y position (row)
         self.z = []  # z position (if 3D)
@@ -43,6 +51,17 @@ class LocalizationResult:
         if z is not None:
             self.z.append(z)
             
+    def add_rejected(self, x, y, reason):
+        """Record a candidate whose fit failed (x = column, y = row of the candidate pixel)."""
+        self.rejected['x'].append(x)
+        self.rejected['y'].append(y)
+        self.rejected['reason'].append(reason)
+
+    def rejected_to_array(self):
+        """Rejected candidates as {'x', 'y' (pixels), 'reason'} arrays."""
+        return {'x': np.array(self.rejected['x'], float), 'y': np.array(self.rejected['y'], float),
+                'reason': np.array(self.rejected['reason'], dtype=object)}
+
     def to_array(self):
         """Convert to numpy array."""
         data = {
@@ -203,3 +222,12 @@ def split_params(p, elliptical=False):
 def effective_sigma(sigma_x, sigma_y):
     """Single PSF width for the uncertainty formula: geometric mean sqrt(sigma_x * sigma_y)."""
     return float(np.sqrt(sigma_x * sigma_y))
+
+
+def rejection_reason(params, amplitude):
+    """Why a converged fit is not a localization, or None: non-finite parameters or no signal."""
+    if not np.all(np.isfinite(params)):
+        return 'non-finite fit parameters'
+    if not amplitude > 0:
+        return 'non-positive fitted intensity'
+    return None

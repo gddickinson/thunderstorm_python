@@ -110,6 +110,16 @@ route('analyze', async () => {
     ${st ? 'On this static site the demo movie is analysed in your browser (about a second).' : ''}</p></div>`;
 });
 
+// One line on failed fits, which are kept out of the localisations (see the Localisations page).
+function rejectedLine(r) {
+  const rej = r.rejected?.reason || [];
+  if (!rej.length) return '<p class="small mute">No failed fits.</p>';
+  const counts = {};
+  rej.forEach(x => { counts[x] = (counts[x] || 0) + 1; });
+  return `<p class="small">${int(rej.length)} candidate${rej.length === 1 ? '' : 's'} rejected (fit failed, not in the results):
+    ${Object.entries(counts).map(([k, v]) => `${esc(k)} × ${v}`).join(', ')}. <a href="#/table">See the list</a>.</p>`;
+}
+
 async function show(r) {
   const [n, h, w] = r.shape, px = r.pixel_size_nm, ev = r.evaluation;
   const truth = r.source === 'demo' ? (await getMovie()).truth : null;
@@ -120,6 +130,7 @@ async function show(r) {
       <div class="tile"><b>${f(px, px % 1 ? 2 : 0)} nm</b><span>pixel size (${esc(r.pixel_size_source || 'user')})</span></div>
       ${ev ? `<div class="tile"><b>${pct(ev.recall)}</b><span>recall vs ground truth</span></div>
       <div class="tile"><b>${f(ev.rmse_nm, 1)} nm</b><span>RMSE of matched positions</span></div>` : ''}</div>
+    ${rejectedLine(r)}
     ${r.file_pixel_size_nm && r.pixel_size_source !== 'file metadata' ? `<p class="small warnc">The file records ${f(r.file_pixel_size_nm, 2)} nm/px; your value was used instead.</p>` : ''}
     ${r.source !== 'demo' && !r.file_pixel_size_nm ? '<p class="small mute">The file does not record a pixel size; the value you entered was used.</p>' : ''}
     <p class="small"><a href="#/image">Super-resolution image</a> · <a href="#/table">Localisation table and CSV</a> · <a href="#/validate">Validation</a></p></div>

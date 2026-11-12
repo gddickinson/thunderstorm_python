@@ -57,8 +57,11 @@ def run_case(name, movie, params):
                       "filtered_mid": float(filt[filt.shape[0] // 2, filt.shape[1] // 3])})
     locs = pipe.analyze_stack(movie, fit_radius=fit_radius, show_progress=False)
     cols = {k: [None if not np.isfinite(v) else float(v) for v in np.asarray(locs[k], float)] for k in KEYS}
+    rej = pipe.get_rejected()
+    rejected = {"frame": rej["frame"].astype(int).tolist(), "x": rej["x"].tolist(), "y": rej["y"].tolist(),
+                "reason": [str(r) for r in rej["reason"]]}
     return {"name": name, "params": {**params}, "shape": list(movie.shape),
-            "movie": np.asarray(movie).astype(int).ravel().tolist(), "trace": trace, "locs": cols}
+            "movie": np.asarray(movie).astype(int).ravel().tolist(), "trace": trace, "locs": cols, "rejected": rejected}
 
 
 def build():

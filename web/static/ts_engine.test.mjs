@@ -28,12 +28,13 @@ check(close(mortensenLSQ(1.3, 1000, 10, 100, 2), 6.2793 * Math.SQRT2, 1e-4), 'Mo
 const TOL = { x: [0.02, 0], y: [0.02, 0], sigma_x: [1e-6, 1e-3], sigma_y: [1e-6, 1e-3], intensity: [1e-6, 1e-3],
   background: [1e-3, 1e-3], uncertainty: [1e-6, 1e-3], chi_squared: [1e-6, 1e-6], frame: [0, 0] };
 const worst = Object.fromEntries(LOC_KEYS.map(k => [k, 0]));
+let nRejected = 0;
 
 for (const c of fx.cases) {
   const [n, h, w] = c.shape, p = c.params;
   const frames = [];
   for (let f = 0; f < n; f++) frames.push(img(w, h, Float64Array.from(c.movie.slice(f * h * w, (f + 1) * h * w))));
-  const js = [];
+  const js = [], rej = [];
   frames.forEach((raw, f) => {
     const filtered = FILTERS[p.filter_type](raw, p.filter_params);
     const t = c.trace[f];
@@ -42,10 +43,14 @@ for (const c of fx.cases) {
     check(close(filtered.d[Math.floor(h / 2) * w + Math.floor(w / 3)], t.filtered_mid, 1e-10, 1e-10), `${c.name} f${f} filtered mid`);
     check(close(threshold(raw, filtered, p.threshold_expression), t.threshold, 1e-10, 1e-12), `${c.name} f${f} threshold`);
     const trace = [];
-    js.push(...analyzeFrame(raw, f, p, trace));
+    js.push(...analyzeFrame(raw, f, p, trace, rej));
     check(JSON.stringify(trace[0].positions) === JSON.stringify(t.positions), `${c.name} f${f} detections ${JSON.stringify(trace[0].positions)} vs ${JSON.stringify(t.positions)}`);
   });
   check(js.length === c.locs.x.length, `${c.name}: ${js.length} vs ${c.locs.x.length} localisations`);
+  check(JSON.stringify(rej.map(r => [r.frame, r.x, r.y, r.reason])) ===
+    JSON.stringify(c.rejected.frame.map((f, i) => [f, c.rejected.x[i], c.rejected.y[i], c.rejected.reason[i]])),
+    `${c.name}: rejected fits ${JSON.stringify(rej)} vs ${JSON.stringify(c.rejected)}`);
+  nRejected += rej.length;
   js.forEach((l, i) => {
     for (const k of LOC_KEYS) {
       const a = Number.isFinite(l[k]) ? l[k] : null, b = c.locs[k][i];
@@ -76,4 +81,4 @@ for (const [k, vals] of Object.entries(E.columns)) vals.forEach((v, i) => check(
 
 console.log('worst |JS - Python| (x, y in nm; others relative):', Object.fromEntries(Object.entries(worst).map(([k, v]) => [k, +v.toExponential(2)])));
 if (failures) { console.error(`${failures} failure(s)`); process.exit(1); }
-console.log(`ok: ${fx.cases.length} pipeline cases (${fx.cases.reduce((s, c) => s + c.locs.x.length, 0)} localisations), render, evaluation, export`);
+console.log(`ok: ${fx.cases.length} pipeline cases (${fx.cases.reduce((s, c) => s + c.locs.x.length, 0)} localisations, ${nRejected} rejected fits), render, evaluation, export`);

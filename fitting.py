@@ -17,7 +17,7 @@ from scipy import optimize, ndimage
 
 from .fitting_base import (  # noqa: F401  (re-exported for backward compatibility)
     LocalizationResult, BaseFitter, gaussian_2d, integrated_gaussian_2d,
-    psf_model, initial_params, split_params, effective_sigma,
+    psf_model, initial_params, split_params, effective_sigma, rejection_reason,
 )
 from .uncertainty import localization_uncertainty
 
@@ -94,6 +94,10 @@ class GaussianLSQFitter(BaseFitter):
                 fitted_data = model((x_coords, y_coords), *popt).reshape(region.shape)
                 chi_sq = np.sum((region - fitted_data) ** 2)
                 
+                reason = rejection_reason(popt, amplitude)
+                if reason:
+                    result.add_rejected(col, row, reason)
+                    continue
                 result.add_localization(
                     x=x_fit,
                     y=y_fit,
@@ -105,18 +109,11 @@ class GaussianLSQFitter(BaseFitter):
                     chi_squared=chi_sq
                 )
                 
-            except (RuntimeError, ValueError):
-                # Fitting failed, use approximate position
-                result.add_localization(
-                    x=col,
-                    y=row,
-                    intensity=0,
-                    background=0,
-                    sigma_x=self.initial_sigma,
-                    sigma_y=self.initial_sigma,
-                    uncertainty=np.inf,
-                    chi_squared=np.inf
-                )
+            except RuntimeError:
+                # curve_fit did not converge within maxfev
+                result.add_rejected(col, row, 'fit did not converge')
+            except ValueError as e:
+                result.add_rejected(col, row, f'fit error: {e}')
                 
         return result
     
@@ -220,6 +217,10 @@ class GaussianMLEFitter(BaseFitter):
                 # Compute uncertainty (for MLE with photon noise)
                 uncertainty = self._compute_mle_uncertainty(effective_sigma(sigma_x, sigma_y), amplitude, bg)
                 
+                reason = rejection_reason(res.x, amplitude)
+                if reason:
+                    result.add_rejected(col, row, reason)
+                    continue
                 result.add_localization(
                     x=x_fit,
                     y=y_fit,
@@ -231,18 +232,8 @@ class GaussianMLEFitter(BaseFitter):
                     chi_squared=res.fun
                 )
                 
-            except (RuntimeError, ValueError):
-                # Fitting failed
-                result.add_localization(
-                    x=col,
-                    y=row,
-                    intensity=0,
-                    background=0,
-                    sigma_x=self.initial_sigma,
-                    sigma_y=self.initial_sigma,
-                    uncertainty=np.inf,
-                    chi_squared=np.inf
-                )
+            except (RuntimeError, ValueError) as e:
+                result.add_rejected(col, row, f'fit error: {e}')
                 
         return result
     
@@ -339,15 +330,7 @@ class RadialSymmetryFitter(BaseFitter):
                     uncertainty=self.pixel_size  # Rough estimate
                 )
             else:
-                # Failed - use approximate position
-                result.add_localization(
-                    x=col,
-                    y=row,
-                    intensity=0,
-                    background=0,
-                    sigma_x=1.3,
-                    uncertainty=np.inf
-                )
+                result.add_rejected(col, row, 'no intensity gradient')
                 
         return result
 
@@ -387,9 +370,8 @@ class CentroidFitter(BaseFitter):
                 y_fit = (y_grid * region_bg_sub).sum() / total
                 intensity = region.max() - background
             else:
-                x_fit = col
-                y_fit = row
-                intensity = 0
+                result.add_rejected(col, row, 'no signal above background')
+                continue
                 
             result.add_localization(
                 x=x_fit,
