@@ -101,3 +101,27 @@ class TestBoxFilter:
         f = BoxFilter(size=3)
         result = f.apply(sample_image)
         assert result.shape == sample_image.shape
+
+
+class TestWaveletBorders:
+    """Regression: the a trous convolution zero-padded the image, so a flat
+    background produced a strong wavelet response along the edges, which the
+    detector then reported as false molecules."""
+
+    @pytest.mark.parametrize('scale', [1, 2, 3])
+    def test_flat_image_has_no_response(self, scale):
+        flat = np.full((40, 50), 37.0)
+        out = WaveletFilter(scale=scale, order=3).apply(flat)
+        assert np.max(np.abs(out)) < 1e-9
+
+    def test_interior_unchanged_by_padding(self, sample_image):
+        """Away from the border (> 2 * reach) the result is the plain convolution."""
+        img = sample_image
+        h = np.array([1/16, 1/4, 3/8, 1/4, 1/16])
+        h2 = np.zeros(9); h2[::2] = h
+        def smooth(a, k):
+            a = np.apply_along_axis(lambda r: np.convolve(r, k, mode='same'), 1, a)
+            return np.apply_along_axis(lambda c: np.convolve(c, k, mode='same'), 0, a)
+        v1 = smooth(img, h); v2 = smooth(v1, h2)
+        out = WaveletFilter(scale=2, order=3).apply(img)
+        np.testing.assert_allclose(out[12:-12, 12:-12], (v1 - v2)[12:-12, 12:-12], rtol=1e-12, atol=1e-9)

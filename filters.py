@@ -100,15 +100,13 @@ class WaveletFilter(BaseFilter):
             indices = np.arange(len(h)) * 2**j
             h_upsampled[indices] = h
             
-            # Convolve rows
-            temp = np.zeros_like(img)
-            for i in range(img.shape[0]):
-                temp[i] = np.convolve(approximation[i], h_upsampled, mode='same')
-            
-            # Convolve columns
-            approx_new = np.zeros_like(img)
-            for j_col in range(img.shape[1]):
-                approx_new[:, j_col] = np.convolve(temp[:, j_col], h_upsampled, mode='same')
+            # Separable convolution (rows, then columns). Edges are padded by
+            # repeating the border pixel, so a flat background gives a zero
+            # wavelet response everywhere (zero padding made the borders
+            # light up as false detections). The kernel is symmetric, so
+            # ndimage's correlation equals convolution.
+            temp = ndimage.correlate1d(approximation, h_upsampled, axis=1, mode='nearest')
+            approx_new = ndimage.correlate1d(temp, h_upsampled, axis=0, mode='nearest')
             
             # Wavelet coefficient is difference
             wavelet = approximation - approx_new
